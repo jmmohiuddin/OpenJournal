@@ -1,0 +1,297 @@
+import { Connection, Message, Entry } from '../models/index.js';
+import { generateWingmanMessage } from '../services/aiService.js';
+import { notifyUser } from '../services/socketService.js';
+
+// @desc    Get all connections for current user
+// @route   GET /api/connections
+export const getConnections = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
+    const query = {
+      $or: [
+        { seekerId: req.user._id },
+        { sageId: req.user._id }
+      ]
+    };
+
+    if (status) {
+      query.status = status;
+    } else {
+      query.status = { $ne: 'declined' };
+    }
+
+    const connections = await Connection.find(query)
+      .populate('seekerId', 'displayName')
+      .populate('sageId', 'displayName')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: connections
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get connection details with entries
+// @route   GET /api/connections/:id
+export const getConnectionDetails = async (req, res, next) => {
+  try {
+    const connection = await Connection.findById(req.params.id)
+      .populate('seekerId', 'displayName photoURL')
+      .populate('sageId', 'displayName photoURL')
+      .populate('problemEntryId', 'content themes sentiment intentLabel')
+      .populate('solutionEntryId', 'content themes sentiment intentLabel');
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    // Verify user is participant
+    const isSeeker = connection.seekerId._id.equals(req.user._id);
+    const isSage = connection.sageId._id.equals(req.user._id);
+    const isParticipant = isSeeker || isSage;
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to view this connection'
+      });
+    }
+
+    // Differential Privacy: Only show full content after both accept
+    const bothAccepted = connection.seekerAccepted && connection.sageAccepted;
+    
+    let responseData = connection.toObject();
+    
+    if (!bothAccepted) {
+      // Obfuscate the other person's entry content until mutual acceptance
+      if (isSeeker && responseData.solutionEntryId) {
+        responseData.solutionEntryId = {
+          _id: responseData.solutionEntryId._id,
+          themes: responseData.solutionEntryId.themes,
+          sentiment: responseData.solutionEntryId.sentiment,
+          intentLabel: responseData.solutionEntryId.intentLabel,
+          // Content replaced with privacy-preserving summary
+          content: connection.theirEntrySummary || 'A thoughtful reflection...',
+          isPrivacyProtected: true
+        };
+      } else if (isSage && responseData.problemEntryId) {
+        responseData.problemEntryId = {
+          _id: responseData.problemEntryId._id,
+          themes: responseData.problemEntryId.themes,
+          sentiment: responseData.problemEntryId.sentiment,
+          intentLabel: responseData.problemEntryId.intentLabel,
+          // Content replaced with privacy-preserving summary
+          content: connection.theirEntrySummary || 'A thoughtful reflection...',
+          isPrivacyProtected: true
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      data: responseData
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Accept a connection
+// @route   POST /api/connections/:id/accept
+export const acceptConnection = async (req, res, next) => {
+  try {
+    const connection = await Connection.findById(req.params.id);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    const isSeeker = connection.seekerId.equals(req.user._id);
+    const isSage = connection.sageId.equals(req.user._id);
+
+    if (!isSeeker && !isSage) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    // Update acceptance status
+    if (isSeeker) connection.seekerAccepted = true;
+    if (isSage) connection.sageAccepted = true;
+
+    // If both accepted, activate the connection
+    if (connection.seekerAccepted && connection.sageAccepted) {
+      connection.status = 'accepted';
+
+      // Generate AI wingman opener
+      try {
+        const [problemEntry, solutionEntry] = await Promise.all([
+          Entry.findById(connection.problemEntryId),
+          Entry.findById(connection.solutionEntryId)
+        ]);
+
+        const wingmanMessage = await generateWingmanMessage(
+          problemEntry,
+          solutionEntry,
+          'opener'
+        );
+
+        await Message.create({
+          connectionId: connection._id,
+          senderId: null,
+          content: wingmanMessage,
+          type: 'ai_wingman'
+        });
+      } catch (err) {
+        console.error('Wingman message error:', err.message);
+      }
+
+      // Notify both users
+      const otherUserId = isSeeker ? connection.sageId : connection.seekerId;
+      notifyUser(otherUserId.toString(), 'connection_accepted', {
+        connectionId: connection._id
+      });
+    }
+
+    await connection.save();
+
+    res.json({
+      success: true,
+      data: connection
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Decline a connection
+// @route   POST /api/connections/:id/decline
+export const declineConnection = async (req, res, next) => {
+  try {
+    const connection = await Connection.findById(req.params.id);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    const isParticipant = 
+      connection.seekerId.equals(req.user._id) ||
+      connection.sageId.equals(req.user._id);
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    connection.status = 'declined';
+    await connection.save();
+
+    res.json({
+      success: true,
+      message: 'Connection declined'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get messages for a connection
+// @route   GET /api/connections/:id/messages
+export const getMessages = async (req, res, next) => {
+  try {
+    const connection = await Connection.findById(req.params.id);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    const isParticipant = 
+      connection.seekerId.equals(req.user._id) ||
+      connection.sageId.equals(req.user._id);
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    const messages = await Message.find({ connectionId: req.params.id })
+      .populate('senderId', 'displayName')
+      .sort({ createdAt: 1 });
+
+    res.json({
+      success: true,
+      data: messages
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Mark connection as helpful/resolved
+// @route   POST /api/connections/:id/feedback
+export const markFeedback = async (req, res, next) => {
+  try {
+    const { helpful, rating, feedback } = req.body;
+    const connection = await Connection.findById(req.params.id);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    const isSeeker = connection.seekerId.equals(req.user._id);
+    const isSage = connection.sageId.equals(req.user._id);
+
+    if (!isSeeker && !isSage) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to provide feedback'
+      });
+    }
+
+    // Update based on role
+    if (isSeeker) {
+      if (helpful !== undefined) connection.markedHelpful = helpful;
+      if (rating) connection.seekerRating = rating;
+      if (feedback) connection.seekerFeedback = feedback;
+      if (helpful) connection.status = 'resolved';
+    }
+    
+    if (isSage) {
+      if (rating) connection.sageRating = rating;
+      if (feedback) connection.sageFeedback = feedback;
+    }
+
+    await connection.save();
+
+    res.json({
+      success: true,
+      data: connection
+    });
+  } catch (error) {
+    next(error);
+  }
+};
