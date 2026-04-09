@@ -3,9 +3,18 @@ import { store } from '../store';
 
 const DEPLOYED_SOCKET_URL = 'https://open-journal-server.vercel.app';
 
+function isResolvableHttpUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveSocketUrl() {
-  const explicit = import.meta.env.VITE_API_URL;
-  if (explicit) return explicit.replace('/api', '');
+  const explicit = import.meta.env.VITE_API_URL?.trim();
+  if (explicit && isResolvableHttpUrl(explicit)) return explicit.replace('/api', '');
   if (import.meta.env.PROD) return DEPLOYED_SOCKET_URL;
   return 'http://localhost:5001';
 }

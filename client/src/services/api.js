@@ -2,9 +2,18 @@ import axios from 'axios';
 
 const DEPLOYED_API_URL = 'https://open-journal-server.vercel.app/api';
 
+function isResolvableHttpUrl(value) {
+  try {
+    const parsed = new URL(value);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveApiUrl() {
-  const explicit = import.meta.env.VITE_API_URL;
-  if (explicit) return explicit;
+  const explicit = import.meta.env.VITE_API_URL?.trim();
+  if (explicit && isResolvableHttpUrl(explicit)) return explicit;
 
   // Production default points to deployed backend when env is not set.
   if (import.meta.env.PROD) {
