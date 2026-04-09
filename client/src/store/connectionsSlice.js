@@ -76,8 +76,8 @@ const connectionsSlice = createSlice({
         state.loading = false;
         state.connections = action.payload.data;
         state.pending = action.payload.data.filter(c => c.status === 'pending');
-        state.active = action.payload.data.filter(c => 
-          c.status === 'accepted' || c.status === 'completed'
+        state.active = action.payload.data.filter(c =>
+          c.status === 'accepted' || c.status === 'completed' || c.status === 'resolved'
         );
       })
       .addCase(fetchConnections.rejected, (state, action) => {
@@ -91,8 +91,8 @@ const connectionsSlice = createSlice({
           state.connections[index] = connection;
         }
         state.pending = state.connections.filter(c => c.status === 'pending');
-        state.active = state.connections.filter(c => 
-          c.status === 'accepted' || c.status === 'completed'
+        state.active = state.connections.filter(c =>
+          c.status === 'accepted' || c.status === 'completed' || c.status === 'resolved'
         );
       })
       .addCase(declineConnection.fulfilled, (state, action) => {
