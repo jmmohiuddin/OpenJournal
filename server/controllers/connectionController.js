@@ -248,6 +248,63 @@ export const getMessages = async (req, res, next) => {
   }
 };
 
+// @desc    Create a message in a connection
+// @route   POST /api/connections/:id/messages
+export const createMessage = async (req, res, next) => {
+  try {
+    const { content } = req.body;
+    const connection = await Connection.findById(req.params.id);
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        message: 'Connection not found'
+      });
+    }
+
+    const isParticipant =
+      connection.seekerId.equals(req.user._id) ||
+      connection.sageId.equals(req.user._id);
+
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized'
+      });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message content is required'
+      });
+    }
+
+    if (connection.status === 'declined') {
+      return res.status(400).json({
+        success: false,
+        message: 'Connection is not active'
+      });
+    }
+
+    const message = await Message.create({
+      connectionId: connection._id,
+      senderId: req.user._id,
+      content: content.trim(),
+      type: 'user'
+    });
+
+    await message.populate('senderId', 'displayName');
+
+    res.status(201).json({
+      success: true,
+      data: message
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Mark connection as helpful/resolved
 // @route   POST /api/connections/:id/feedback
 export const markFeedback = async (req, res, next) => {

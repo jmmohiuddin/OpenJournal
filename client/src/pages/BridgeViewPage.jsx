@@ -18,9 +18,29 @@ export default function BridgeViewPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const messagesEndRef = useRef(null);
 
+  const mergeUniqueMessages = (incoming) => {
+    const map = new Map();
+    incoming.forEach((msg) => {
+      if (msg?._id) {
+        map.set(msg._id, msg);
+      }
+    });
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+    );
+  };
+
   useEffect(() => {
     loadConnection();
     loadMessages();
+  }, [connectionId]);
+
+  useEffect(() => {
+    if (!connectionId) return;
+    const pollId = setInterval(() => {
+      loadMessages({ silent: true });
+    }, 4000);
+    return () => clearInterval(pollId);
   }, [connectionId]);
 
   useEffect(() => {
@@ -50,27 +70,41 @@ export default function BridgeViewPage() {
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessages = async ({ silent = false } = {}) => {
     try {
       const { data } = await api.get(`/connections/${connectionId}/messages`);
-      setMessages(data.data);
+      setMessages((prev) => (silent ? mergeUniqueMessages([...prev, ...data.data]) : mergeUniqueMessages(data.data)));
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
   };
 
   const handleNewMessage = (message) => {
-    setMessages(prev => [...prev, message]);
+    setMessages(prev => mergeUniqueMessages([...prev, message]));
   };
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || sending) return;
 
+    const content = newMessage.trim();
     setSending(true);
-    sendMessage(connectionId, newMessage);
     setNewMessage('');
-    setSending(false);
+    try {
+      // Primary path: REST message creation works on serverless deployments.
+      const { data } = await api.post(`/connections/${connectionId}/messages`, { content });
+      if (data?.data) {
+        setMessages(prev => mergeUniqueMessages([...prev, data.data]));
+      }
+      // Keep socket emit as secondary realtime hint for connected peers.
+      sendMessage(connectionId, content);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      // Fallback to socket-only attempt if REST fails.
+      sendMessage(connectionId, content);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleMarkHelpful = async (helpful) => {
