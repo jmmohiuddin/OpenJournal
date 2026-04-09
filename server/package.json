@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "vercel-start": "node server.js"
   },
   "dependencies": {
     "@huggingface/inference": "^4.13.15",
