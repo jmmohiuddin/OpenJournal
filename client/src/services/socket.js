@@ -1,10 +1,12 @@
 import { io } from 'socket.io-client';
 import { store } from '../store';
 
+const DEPLOYED_SOCKET_URL = 'https://open-journal-server.vercel.app';
+
 function resolveSocketUrl() {
   const explicit = import.meta.env.VITE_API_URL;
   if (explicit) return explicit.replace('/api', '');
-  if (import.meta.env.PROD) return window.location.origin;
+  if (import.meta.env.PROD) return DEPLOYED_SOCKET_URL;
   return 'http://localhost:5001';
 }
 
