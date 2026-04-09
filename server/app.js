@@ -6,10 +6,27 @@ import connectionRoutes from './routes/connections.js';
 import aiRoutes from './routes/ai.js';
 import circleRoutes from './routes/circles.js';
 import matchingRoutes from './routes/matching.js';
+import connectDB from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initializeAI } from './services/aiService.js';
 
 const app = express();
+
+let dbConnectPromise = null;
+
+async function ensureDatabaseConnection() {
+  if (dbConnectPromise) {
+    return dbConnectPromise;
+  }
+
+  dbConnectPromise = connectDB().catch((error) => {
+    dbConnectPromise = null;
+    throw error;
+  });
+
+  return dbConnectPromise;
+}
+
 
 // Initialize AI backend
 initializeAI().catch(err => console.error('AI init error:', err));
@@ -58,6 +75,17 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV 
   });
+});
+
+
+// Ensure database is connected before API handlers run (important in Vercel serverless runtime)
+app.use('/api', async (req, res, next) => {
+  try {
+    await ensureDatabaseConnection();
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // API Routes
