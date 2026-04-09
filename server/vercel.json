@@ -1,12 +1,16 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/*.js": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/:path*" }
-  ]
+ "version": 2,
+ "builds": [
+  {
+   "src": "app.js",
+   "use": "@vercel/node",
+   "config": { "includeFiles": ["dist/**"] }
+  }
+ ],
+ "routes": [
+  {
+   "src": "/(.*)",
+   "dest": "app.js"
+  }
+ ]
 }
