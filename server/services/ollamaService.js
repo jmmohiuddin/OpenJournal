@@ -62,6 +62,48 @@ function parseJsonResponse(text) {
   return null;
 }
 
+// Helper: Chat with messages format (supports multi-turn)
+export async function chat(messages, options = {}) {
+  try {
+    // Convert messages to simple prompt format for Ollama
+    let prompt = '';
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        prompt += `System: ${msg.content}\n\n`;
+      } else if (msg.role === 'user') {
+        prompt += `User: ${msg.content}\n\n`;
+      } else if (msg.role === 'assistant') {
+        prompt += `Assistant: ${msg.content}\n\n`;
+      }
+    }
+    prompt += 'Assistant: ';
+
+    const response = await fetch(`${OLLAMA_BASE}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: options.model || CHAT_MODEL,
+        prompt: prompt.trim(),
+        stream: false,
+        options: {
+          temperature: options.temperature || 0.7,
+          num_predict: options.maxTokens || 500
+        }
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Ollama error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.response;
+  } catch (error) {
+    console.error('Ollama chat error:', error.message);
+    return null;
+  }
+}
+
 // Generate embedding using Ollama
 export async function generateEmbedding(text) {
   try {

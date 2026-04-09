@@ -331,6 +331,34 @@ export async function transcribeAudio(buffer, mimeType) {
   }
 }
 
+// Generic chat function for custom prompts
+export async function chat(messages, options = {}) {
+  const { temperature = 0.7, maxTokens = 500 } = options;
+  
+  if (useOllama) {
+    return await ollama.chat(messages, { temperature, maxTokens });
+  }
+  
+  const client = getOpenAI();
+  if (!client) {
+    return null;
+  }
+
+  try {
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages,
+      temperature,
+      max_tokens: maxTokens
+    });
+
+    return response.choices[0].message.content;
+  } catch (error) {
+    console.error('Chat error:', error.message);
+    return null;
+  }
+}
+
 // Re-export Ollama-specific functions for new features
 export const generateGhostText = ollama.generateGhostText;
 export const generateOnboardingQuestion = ollama.generateOnboardingQuestion;

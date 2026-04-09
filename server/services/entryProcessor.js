@@ -1,6 +1,7 @@
 import { Entry, Connection } from '../models/index.js';
 import * as aiService from './aiService.js';
 import { notifyUser } from './socketService.js';
+import { findMatchesForEntry } from './passiveMatchingService.js';
 
 const MATCH_THRESHOLD = 0.85;
 const HIGH_CONFIDENCE_THRESHOLD = 0.92;
@@ -49,7 +50,8 @@ export async function processEntry(entryId) {
 
   // Find matches if discoverable and has embedding
   if (entry.isDiscoverable && embedding) {
-    await findAndCreateMatches(entryId, intent.label, embedding, entry.userId, entry);
+    // Use new passive matching service for comprehensive matching
+    await findMatchesForEntry(entryId);
   }
 
   return { sentiment, intent, themes, followUpQuestion };

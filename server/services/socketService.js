@@ -6,9 +6,16 @@ import { generateWingmanMessage } from './aiService.js';
 let io = null;
 
 export function initSocket(server) {
+  // Allow both localhost and tunnel domain
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'https://bring-acer-replaced-erik.trycloudflare.com',
+    process.env.CLIENT_URL
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true
     }

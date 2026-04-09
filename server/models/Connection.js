@@ -1,29 +1,62 @@
 import mongoose from 'mongoose';
 
 const connectionSchema = new mongoose.Schema({
-  // The user who has the problem/question
-  seekerId: {
+  // Connection type - determines the nature of the match
+  connectionType: {
+    type: String,
+    enum: [
+      'seeker-sage',      // Problem → Solution (original)
+      'solidarity',        // Problem ↔ Problem (shared struggle)
+      'wisdom-exchange',   // Solution ↔ Solution (complementary wisdom)
+      'kindred-spirits',   // Reflection ↔ Reflection (similar thoughts)
+      'insight-share'      // Any cross-type high-relevance match
+    ],
+    default: 'seeker-sage'
+  },
+  // First user in the connection
+  user1Id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  // Second user in the connection
+  user2Id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  // First entry
+  entry1Id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Entry',
+    required: true
+  },
+  // Second entry
+  entry2Id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Entry',
+    required: true
+  },
+  // Legacy fields for backward compatibility (seeker-sage type)
+  // The user who has the problem/question
+  seekerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   // The user who has the solution/wisdom
   sageId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   },
   // The problem entry
   problemEntryId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Entry',
-    required: true
+    ref: 'Entry'
   },
   // The solution entry
   solutionEntryId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Entry',
-    required: true
+    ref: 'Entry'
   },
   // Semantic similarity score (vector cosine)
   similarityScore: {
@@ -97,11 +130,15 @@ const connectionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for finding user's connections
+// Indexes for finding user's connections (both directions)
+connectionSchema.index({ user1Id: 1, status: 1 });
+connectionSchema.index({ user2Id: 1, status: 1 });
 connectionSchema.index({ seekerId: 1, status: 1 });
 connectionSchema.index({ sageId: 1, status: 1 });
+connectionSchema.index({ connectionType: 1, status: 1 });
 
-// Prevent duplicate connections for same entry pair
-connectionSchema.index({ problemEntryId: 1, solutionEntryId: 1 }, { unique: true });
+// Prevent duplicate connections for same entry pair (order-independent)
+connectionSchema.index({ entry1Id: 1, entry2Id: 1 }, { unique: true, sparse: true });
+connectionSchema.index({ problemEntryId: 1, solutionEntryId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Connection', connectionSchema);
