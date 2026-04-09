@@ -16,7 +16,7 @@ AI-powered reflective social journaling platform that connects users based on se
 - **Frontend**: React, Redux, Tailwind CSS, Socket.io-client
 - **Backend**: Node.js, Express.js, Socket.io
 - **Database**: MongoDB Atlas (with Vector Search)
-- **AI**: OpenAI GPT-4o, Voyage AI embeddings
+- **AI**: Hugging Face Inference API, Ollama (localhost), OpenAI (fallback)
 
 ## Getting Started
 
@@ -24,8 +24,7 @@ AI-powered reflective social journaling platform that connects users based on se
 
 - Node.js 18+
 - MongoDB (local or Atlas)
-- OpenAI API key
-- Voyage AI API key (optional, can use OpenAI embeddings)
+- Hugging Face token (recommended)
 
 ### Installation
 
@@ -50,9 +49,25 @@ npm run dev
 |----------|-------------|
 | `MONGODB_URI` | MongoDB connection string |
 | `JWT_SECRET` | Secret for JWT tokens |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `VOYAGE_API_KEY` | Voyage AI API key |
+| `AI_PROVIDER` | AI backend: `auto`, `ollama`, `huggingface`, `openai` |
+| `HF_TOKEN` | Hugging Face API token |
+| `HF_PROVIDER` | Inference provider route (default: `hf-inference`) |
+| `HF_INTENT_MODEL` | Intent model (default: `microsoft/deberta-v3-large`) |
+| `HF_EMBED_MODEL` | Embedding model (default: `BAAI/bge-large-en-v1.5`) |
+| `HF_RERANK_MODEL` | Reranker model (default: `BAAI/bge-reranker-large`) |
+| `HF_CHAT_MODEL` | Guide/Mediator model (default: `meta-llama/Meta-Llama-3.1-8B-Instruct`) |
+| `HF_ASR_MODEL` | Speech-to-text model (default: `openai/whisper-large-v3`) |
+| `OLLAMA_URL` | Local Ollama URL (dev/test localhost AI) |
+| `OLLAMA_CHAT_MODEL` | Ollama chat model |
+| `OLLAMA_EMBED_MODEL` | Ollama embedding model |
+| `OPENAI_API_KEY` | OpenAI key (optional fallback) |
 | `CLIENT_URL` | Frontend URL for CORS |
+
+### AI Backend Mode
+
+- Local testing: keep localhost AI via Ollama (`AI_PROVIDER=auto` with Ollama running, or force `AI_PROVIDER=ollama`).
+- Deployment with Hugging Face: set `AI_PROVIDER=huggingface` and configure `HF_TOKEN`.
+- Fallback order in `auto`: Ollama → Hugging Face → OpenAI.
 
 ## Project Structure
 

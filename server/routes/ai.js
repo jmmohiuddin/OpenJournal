@@ -11,7 +11,7 @@ const upload = multer({
 
 // Get AI health status
 router.get('/health', async (req, res) => {
-  const health = await aiService.checkOllamaHealth();
+  const health = await aiService.checkAIHealth();
   res.json(health);
 });
 
@@ -80,7 +80,7 @@ router.post('/rerank', protect, async (req, res) => {
   }
 });
 
-// Transcribe audio with OpenAI Whisper
+// Transcribe audio with configured AI backend (HF Whisper/OpenAI)
 router.post('/transcribe', protect, upload.single('audio'), async (req, res) => {
   try {
     if (!req.file) {
