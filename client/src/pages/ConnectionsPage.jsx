@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { fetchConnections, acceptConnection, declineConnection } from '../store/connectionsSlice';
@@ -8,6 +8,41 @@ export default function ConnectionsPage() {
   const dispatch = useDispatch();
   const { connections, pending, active, loading, error } = useSelector(state => state.connections);
   const { user } = useSelector(state => state.auth);
+
+  const getUserId = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    return value._id || null;
+  };
+
+  const dedupeByOtherUser = (list) => {
+    const currentUserId = getUserId(user?._id);
+    const byOtherUser = new Map();
+
+    list.forEach((connection) => {
+      const seekerId = getUserId(connection.seekerId);
+      const sageId = getUserId(connection.sageId);
+      const otherUserId = seekerId === currentUserId ? sageId : seekerId;
+      if (!otherUserId) return;
+
+      const existing = byOtherUser.get(otherUserId);
+      if (!existing) {
+        byOtherUser.set(otherUserId, connection);
+        return;
+      }
+
+      const existingTime = new Date(existing.createdAt || 0).getTime();
+      const incomingTime = new Date(connection.createdAt || 0).getTime();
+      if (incomingTime > existingTime) {
+        byOtherUser.set(otherUserId, connection);
+      }
+    });
+
+    return Array.from(byOtherUser.values());
+  };
+
+  const uniquePending = useMemo(() => dedupeByOtherUser(pending), [pending, user?._id]);
+  const uniqueActive = useMemo(() => dedupeByOtherUser(active), [active, user?._id]);
 
   useEffect(() => {
     dispatch(fetchConnections());
@@ -45,17 +80,17 @@ export default function ConnectionsPage() {
       )}
 
       {/* Pending Connections */}
-      {pending.length > 0 && (
+      {uniquePending.length > 0 && (
         <section className="mb-8">
           <h2 className="text-lg font-medium text-gray-700 mb-4 flex items-center gap-2">
             <span>✨</span>
             <span>Pending Resonances</span>
             <span className="px-2 py-0.5 bg-blue-eyes text-white text-xs rounded-full">
-              {pending.length}
-            </span>
-          </h2>
-          <div className="space-y-4">
-            {pending.map(connection => (
+                {uniquePending.length}
+              </span>
+            </h2>
+            <div className="space-y-4">
+            {uniquePending.map(connection => (
               <PendingCard 
                 key={connection._id}
                 connection={connection}
@@ -69,13 +104,13 @@ export default function ConnectionsPage() {
       )}
 
       {/* Active Connections */}
-      {active.length > 0 && (
+      {uniqueActive.length > 0 && (
         <section>
           <h2 className="text-lg font-medium text-gray-700 mb-4">
             Active Connections
           </h2>
           <div className="space-y-4">
-            {active.map(connection => (
+            {uniqueActive.map(connection => (
               <ActiveCard 
                 key={connection._id}
                 connection={connection}
