@@ -14,11 +14,29 @@ function isResolvableHttpUrl(value) {
   }
 }
 
+function isEphemeralTunnelUrl(value) {
+  try {
+    const { hostname } = new URL(value);
+    return (
+      hostname.endsWith('trycloudflare.com') ||
+      hostname.endsWith('ngrok-free.app') ||
+      hostname.endsWith('ngrok.io')
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveSocketUrl() {
   const explicit = import.meta.env.VITE_API_URL?.trim();
-  if (explicit && isResolvableHttpUrl(explicit)) return explicit.replace('/api', '');
+  const allowTunnelInDev = import.meta.env.VITE_ALLOW_TUNNEL_URL === 'true';
+  if (explicit && isResolvableHttpUrl(explicit)) {
+    if (import.meta.env.PROD || allowTunnelInDev || !isEphemeralTunnelUrl(explicit)) {
+      return explicit.replace('/api', '');
+    }
+  }
   if (import.meta.env.PROD) return DEPLOYED_SOCKET_URL;
-  return 'http://localhost:5000';
+  return 'http://localhost:5001';
 }
 
 const SOCKET_URL = resolveSocketUrl();

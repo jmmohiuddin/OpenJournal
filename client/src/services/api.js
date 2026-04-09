@@ -11,16 +11,34 @@ function isResolvableHttpUrl(value) {
   }
 }
 
+function isEphemeralTunnelUrl(value) {
+  try {
+    const { hostname } = new URL(value);
+    return (
+      hostname.endsWith('trycloudflare.com') ||
+      hostname.endsWith('ngrok-free.app') ||
+      hostname.endsWith('ngrok.io')
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
 function resolveApiUrl() {
   const explicit = import.meta.env.VITE_API_URL?.trim();
-  if (explicit && isResolvableHttpUrl(explicit)) return explicit;
+  const allowTunnelInDev = import.meta.env.VITE_ALLOW_TUNNEL_URL === 'true';
+  if (explicit && isResolvableHttpUrl(explicit)) {
+    if (import.meta.env.PROD || allowTunnelInDev || !isEphemeralTunnelUrl(explicit)) {
+      return explicit;
+    }
+  }
 
   // Production default points to deployed backend when env is not set.
   if (import.meta.env.PROD) {
     return DEPLOYED_API_URL;
   }
 
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5001/api';
 }
 
 const API_URL = resolveApiUrl();
