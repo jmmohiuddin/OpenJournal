@@ -5,17 +5,30 @@ import { generateWingmanMessage } from './aiService.js';
 
 let io = null;
 
+function parseOriginList(value) {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 export function initSocket(server) {
-  // Allow both localhost and tunnel domain
+  // Socket CORS: localhost + configured production domains
   const allowedOrigins = [
     'http://localhost:5173',
+    'http://localhost:5001',
     'https://bring-acer-replaced-erik.trycloudflare.com',
-    process.env.CLIENT_URL
-  ].filter(Boolean);
+    'https://openjournal.me',
+    'https://www.openjournal.me',
+    ...parseOriginList(process.env.CLIENT_URLS),
+    ...parseOriginList(process.env.CLIENT_URL)
+  ];
+  const normalizedAllowedOrigins = [...new Set(allowedOrigins)];
 
   io = new Server(server, {
     cors: {
-      origin: allowedOrigins,
+      origin: normalizedAllowedOrigins,
       methods: ['GET', 'POST'],
       credentials: true
     }

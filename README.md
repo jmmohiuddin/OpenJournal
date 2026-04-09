@@ -64,7 +64,8 @@ npm run dev
 | `OLLAMA_CHAT_MODEL` | Ollama chat model |
 | `OLLAMA_EMBED_MODEL` | Ollama embedding model |
 | `OPENAI_API_KEY` | OpenAI key (optional fallback) |
-| `CLIENT_URL` | Frontend URL for CORS |
+| `CLIENT_URL` | Single frontend URL for CORS (backward compatible) |
+| `CLIENT_URLS` | Comma-separated allowed frontend origins for CORS/socket (recommended for prod + www) |
 
 ### AI Backend Mode
 

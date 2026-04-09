@@ -14,18 +14,31 @@ const app = express();
 // Initialize AI backend
 initializeAI().catch(err => console.error('AI init error:', err));
 
-// CORS configuration - allow both localhost and public tunnel
+function parseOriginList(value) {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+// CORS configuration - allow localhost plus configured production domains
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:5001',
   'https://bring-acer-replaced-erik.trycloudflare.com',
-  process.env.CLIENT_URL
-].filter(Boolean);
+  'https://openjournal.me',
+  'https://www.openjournal.me',
+  ...parseOriginList(process.env.CLIENT_URLS),
+  ...parseOriginList(process.env.CLIENT_URL)
+];
+const normalizedAllowedOrigins = [...new Set(allowedOrigins)];
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
+    if (normalizedAllowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
