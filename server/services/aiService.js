@@ -13,11 +13,13 @@ const PROVIDERS = {
 const OPENAI_CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o-mini';
 const OPENAI_EMBED_MODEL = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small';
 
-const HF_PROVIDER = process.env.HF_PROVIDER || 'hf-inference';
+const HF_PROVIDER = process.env.HF_PROVIDER || 'auto';
 const HF_INTENT_MODEL = process.env.HF_INTENT_MODEL || 'microsoft/deberta-v3-large';
 const HF_EMBED_MODEL = process.env.HF_EMBED_MODEL || 'BAAI/bge-large-en-v1.5';
 const HF_RERANK_MODEL = process.env.HF_RERANK_MODEL || 'BAAI/bge-reranker-large';
 const HF_CHAT_MODEL = process.env.HF_CHAT_MODEL || 'meta-llama/Meta-Llama-3.1-8B-Instruct';
+const HF_CHAT_FALLBACK_MODEL = process.env.HF_CHAT_FALLBACK_MODEL || 'Qwen/Qwen2.5-7B-Instruct';
+const HF_RERANK_FALLBACK_MODEL = process.env.HF_RERANK_FALLBACK_MODEL || 'BAAI/bge-reranker-base';
 const HF_ASR_MODEL = process.env.HF_ASR_MODEL || 'openai/whisper-large-v3';
 
 const configuredProvider = (process.env.AI_PROVIDER || PROVIDERS.AUTO).toLowerCase();
@@ -227,15 +229,34 @@ async function hfChatCompletion(messages, options = {}) {
   if (!client) return null;
 
   const { temperature = 0.7, maxTokens = 500 } = options;
-  const response = await client.chatCompletion({
-    model: HF_CHAT_MODEL,
-    provider: HF_PROVIDER,
-    messages,
-    temperature,
-    max_tokens: maxTokens
-  });
+  const attempts = [
+    { model: HF_CHAT_MODEL, withProvider: true },
+    { model: HF_CHAT_MODEL, withProvider: false },
+    ...(HF_CHAT_FALLBACK_MODEL && HF_CHAT_FALLBACK_MODEL !== HF_CHAT_MODEL
+      ? [
+          { model: HF_CHAT_FALLBACK_MODEL, withProvider: true },
+          { model: HF_CHAT_FALLBACK_MODEL, withProvider: false }
+        ]
+      : [])
+  ];
 
-  return response?.choices?.[0]?.message?.content || null;
+  for (const attempt of attempts) {
+    try {
+      const payload = {
+        model: attempt.model,
+        messages,
+        temperature,
+        max_tokens: maxTokens
+      };
+      if (attempt.withProvider) payload.provider = HF_PROVIDER;
+
+      const response = await client.chatCompletion(payload);
+      const content = response?.choices?.[0]?.message?.content || null;
+      if (content) return content;
+    } catch (_) {}
+  }
+
+  return null;
 }
 
 async function chatCompletion(messages, options = {}) {
@@ -320,6 +341,7 @@ export async function checkAIHealth() {
       embedModel: HF_EMBED_MODEL,
       rerankModel: HF_RERANK_MODEL,
       chatModel: HF_CHAT_MODEL,
+      chatFallbackModel: HF_CHAT_FALLBACK_MODEL,
       asrModel: HF_ASR_MODEL
     },
     openai: {
@@ -564,10 +586,11 @@ export async function transcribeAudio(buffer, mimeType) {
     }
 
     try {
+      const asrProvider = process.env.HF_ASR_PROVIDER || 'hf-inference';
       const blob = new Blob([buffer], { type: mimeType || 'audio/webm' });
       const transcript = await client.automaticSpeechRecognition({
         model: HF_ASR_MODEL,
-        provider: HF_PROVIDER,
+        provider: asrProvider,
         data: blob
       });
 
@@ -682,15 +705,30 @@ export async function rerankMatches(problemEntry, candidateSolutions) {
   if (activeProvider === PROVIDERS.HUGGINGFACE) {
     const client = getHFClient();
     const scored = [];
+    const rerankModels = [
+      HF_RERANK_MODEL,
+      ...(HF_RERANK_FALLBACK_MODEL && HF_RERANK_FALLBACK_MODEL !== HF_RERANK_MODEL
+        ? [HF_RERANK_FALLBACK_MODEL]
+        : [])
+    ];
 
     for (const solution of candidateSolutions.slice(0, 20)) {
       try {
-        const output = await client.textClassification({
-          model: HF_RERANK_MODEL,
-          provider: HF_PROVIDER,
-          inputs: `query: ${problemEntry.content?.slice(0, 500) || 'General challenge'}\npassage: ${solution.content?.slice(0, 500) || 'General advice'}`
-        });
-
+        let output = null;
+        let lastError = null;
+        for (const model of rerankModels) {
+          try {
+            output = await client.textClassification({
+              model,
+              provider: HF_PROVIDER,
+              inputs: `query: ${problemEntry.content?.slice(0, 500) || 'General challenge'}\npassage: ${solution.content?.slice(0, 500) || 'General advice'}`
+            });
+            break;
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        if (!output && lastError) throw lastError;
         const rerankScore = parseHFRerankScore(output);
         scored.push({
           ...solution,
