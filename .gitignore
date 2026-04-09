@@ -5,8 +5,9 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.import.env
 .env.example
-import.env
+
 .env.*.example
 # Build outputs
 dist/
@@ -27,3 +28,5 @@ Thumbs.db
 # Temp files
 *.swp
 *.swo
+
+import.env
