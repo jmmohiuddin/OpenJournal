@@ -36,7 +36,25 @@ const normalizeForClient = (connection) => {
   if (!normalized.sageId && normalized.user2Id) normalized.sageId = normalized.user2Id;
   if (!normalized.problemEntryId && normalized.entry1Id) normalized.problemEntryId = normalized.entry1Id;
   if (!normalized.solutionEntryId && normalized.entry2Id) normalized.solutionEntryId = normalized.entry2Id;
+  if (normalized.seekerAccepted === undefined || normalized.seekerAccepted === null) {
+    normalized.seekerAccepted = false;
+  }
+  if (normalized.sageAccepted === undefined || normalized.sageAccepted === null) {
+    normalized.sageAccepted = false;
+  }
   return normalized;
+};
+
+const getUserRole = (connection, userId) => {
+  const normalized = normalizeForClient(connection);
+  const currentUserId = toIdString(userId);
+  const seekerId = toIdString(normalized.seekerId);
+  const sageId = toIdString(normalized.sageId);
+  return {
+    normalized,
+    isSeeker: seekerId === currentUserId,
+    isSage: sageId === currentUserId
+  };
 };
 
 const refreshUserMatchesIfNeeded = async (userId) => {
@@ -126,11 +144,7 @@ export const getConnectionDetails = async (req, res, next) => {
       });
     }
 
-    const normalized = normalizeForClient(connection);
-    const currentUserId = toIdString(req.user._id);
-    const seekerId = toIdString(normalized.seekerId);
-    const isSeeker = seekerId === currentUserId;
-    const isSage = toIdString(normalized.sageId) === currentUserId;
+    const { normalized, isSeeker, isSage } = getUserRole(connection, req.user._id);
 
     // Differential Privacy: Only show full content after both accept
     const bothAccepted = connection.seekerAccepted && connection.sageAccepted;
@@ -190,10 +204,7 @@ export const acceptConnection = async (req, res, next) => {
       });
     }
 
-    const normalized = normalizeForClient(connection);
-    const currentUserId = toIdString(req.user._id);
-    const isSeeker = toIdString(normalized.seekerId) === currentUserId;
-    const isSage = toIdString(normalized.sageId) === currentUserId;
+    const { normalized, isSeeker, isSage } = getUserRole(connection, req.user._id);
 
     // Update acceptance status
     if (isSeeker) connection.seekerAccepted = true;
@@ -385,10 +396,7 @@ export const markFeedback = async (req, res, next) => {
       });
     }
 
-    const normalized = normalizeForClient(connection);
-    const currentUserId = toIdString(req.user._id);
-    const isSeeker = toIdString(normalized.seekerId) === currentUserId;
-    const isSage = toIdString(normalized.sageId) === currentUserId;
+    const { isSeeker, isSage } = getUserRole(connection, req.user._id);
 
     // Update based on role
     if (isSeeker) {

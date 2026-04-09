@@ -10,6 +10,7 @@ const THRESHOLDS = {
   'kindred-spirits': 0.70,     // Reflection ↔ Reflection (lowered from 0.75)
   'insight-share': 0.80        // Cross-type (lowered from 0.85)
 };
+const FALLBACK_MIN_THRESHOLD = parseFloat(process.env.MATCH_FALLBACK_MIN_THRESHOLD || '0.55');
 
 const MAX_MATCHES_PER_ENTRY = 5;
 const BATCH_SIZE = 50;
@@ -30,8 +31,7 @@ export async function runPassiveMatching(options = {}) {
   
   const query = {
     isDiscoverable: true,
-    aiProcessed: true,
-    embedding: { $ne: null }
+    aiProcessed: true
   };
   
   if (userId) query.userId = userId;
@@ -159,7 +159,6 @@ async function findMatchesByType(sourceEntry, connectionType) {
     intentLabel: { $in: targetIntents },
     isDiscoverable: true,
     aiProcessed: true,
-    embedding: { $ne: null },
     userId: { $ne: sourceEntry.userId }, // Don't match with own entries
     _id: { $ne: sourceEntry._id }
   })
@@ -167,28 +166,38 @@ async function findMatchesByType(sourceEntry, connectionType) {
   .limit(BATCH_SIZE);
 
   // Calculate similarity for each candidate
-  const matches = [];
+  const scoredCandidates = [];
   
   console.log(`   Checking ${candidates.length} candidates for ${connectionType}`);
   
   for (const candidate of candidates) {
-    const similarity = cosineSimilarity(sourceEntry.embedding, candidate.embedding);
+    const similarity = computeSimilarity(sourceEntry, candidate);
     
     console.log(`   Similarity: ${similarity.toFixed(3)} (threshold: ${threshold.toFixed(3)}) - ${candidate.intentLabel}`);
     
-    if (similarity >= threshold) {
-      matches.push({
-        entry: candidate,
-        similarity,
-        connectionType
-      });
-      console.log(`   ✅ Match found! Similarity ${similarity.toFixed(3)} >= threshold ${threshold.toFixed(3)}`);
-    }
+    scoredCandidates.push({
+      entry: candidate,
+      similarity,
+      connectionType
+    });
   }
-  
-  console.log(`   Found ${matches.length} matches above threshold for ${connectionType}`);
-  
-  return matches.sort((a, b) => b.similarity - a.similarity);
+
+  const strictMatches = scoredCandidates.filter((m) => m.similarity >= threshold);
+  if (strictMatches.length > 0) {
+    console.log(`   Found ${strictMatches.length} matches above threshold for ${connectionType}`);
+    return strictMatches.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  const fallbackMatches = scoredCandidates.filter((m) => m.similarity >= FALLBACK_MIN_THRESHOLD);
+  if (fallbackMatches.length > 0) {
+    console.log(
+      `   Using fallback threshold ${FALLBACK_MIN_THRESHOLD.toFixed(2)} for ${connectionType}; found ${fallbackMatches.length} matches`
+    );
+    return fallbackMatches.sort((a, b) => b.similarity - a.similarity);
+  }
+
+  console.log(`   Found 0 matches for ${connectionType}`);
+  return [];
 }
 
 /**
@@ -408,13 +417,56 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 /**
+ * Compute similarity with resilient fallback:
+ * - Use embedding cosine when both vectors are available and compatible.
+ * - Otherwise use lexical/theme overlap so matching still works for users whose
+ *   embedding provider is temporarily unavailable.
+ */
+function computeSimilarity(entryA, entryB) {
+  const embeddingScore = cosineSimilarity(entryA.embedding, entryB.embedding);
+  if (embeddingScore > 0) return embeddingScore;
+
+  const themesA = (entryA.themes || []).map((t) => t.toLowerCase().trim()).filter(Boolean);
+  const themesB = (entryB.themes || []).map((t) => t.toLowerCase().trim()).filter(Boolean);
+  const themeScore = jaccardScore(themesA, themesB);
+
+  const tokensA = tokenize(entryA.content);
+  const tokensB = tokenize(entryB.content);
+  const tokenScore = jaccardScore(tokensA, tokensB);
+
+  // Themes are denser intent signals than raw token overlap.
+  return (themeScore * 0.65) + (tokenScore * 0.35);
+}
+
+function tokenize(text) {
+  if (!text || typeof text !== 'string') return [];
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((token) => token.length > 2);
+}
+
+function jaccardScore(listA, listB) {
+  if (!listA.length || !listB.length) return 0;
+  const setA = new Set(listA);
+  const setB = new Set(listB);
+  let intersection = 0;
+  for (const item of setA) {
+    if (setB.has(item)) intersection++;
+  }
+  const union = new Set([...setA, ...setB]).size;
+  return union ? intersection / union : 0;
+}
+
+/**
  * Process a single entry for matches (called from entryProcessor)
  */
 export async function findMatchesForEntry(entryId) {
   const entry = await Entry.findById(entryId)
     .select('_id userId content themes sentiment intentLabel embedding');
   
-  if (!entry || !entry.embedding) {
+  if (!entry) {
     return [];
   }
 
@@ -441,7 +493,7 @@ export async function getMatchStats(entryId) {
   const entry = await Entry.findById(entryId)
     .select('_id userId themes sentiment intentLabel embedding');
   
-  if (!entry || !entry.embedding) {
+  if (!entry) {
     return { potentialMatches: 0, byType: {} };
   }
 

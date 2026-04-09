@@ -12,16 +12,25 @@ export default function ConnectionsPage() {
   const getUserId = (value) => {
     if (!value) return null;
     if (typeof value === 'string') return value;
-    return value._id || null;
+    if (value._id) return value._id.toString();
+    if (value.id) return value.id.toString();
+    return value.toString?.() || null;
+  };
+
+  const resolveParticipants = (connection) => {
+    const seeker = connection.seekerId || connection.user1Id;
+    const sage = connection.sageId || connection.user2Id;
+    return { seeker, sage };
   };
 
   const dedupeByOtherUser = (list) => {
-    const currentUserId = getUserId(user?._id);
+    const currentUserId = getUserId(user?._id || user?.id || user);
     const byOtherUser = new Map();
 
     list.forEach((connection) => {
-      const seekerId = getUserId(connection.seekerId);
-      const sageId = getUserId(connection.sageId);
+      const { seeker, sage } = resolveParticipants(connection);
+      const seekerId = getUserId(seeker);
+      const sageId = getUserId(sage);
       const otherUserId = seekerId === currentUserId ? sageId : seekerId;
       if (!otherUserId) return;
 
@@ -41,8 +50,8 @@ export default function ConnectionsPage() {
     return Array.from(byOtherUser.values());
   };
 
-  const uniquePending = useMemo(() => dedupeByOtherUser(pending), [pending, user?._id]);
-  const uniqueActive = useMemo(() => dedupeByOtherUser(active), [active, user?._id]);
+  const uniquePending = useMemo(() => dedupeByOtherUser(pending), [pending, user?._id, user?.id]);
+  const uniqueActive = useMemo(() => dedupeByOtherUser(active), [active, user?._id, user?.id]);
 
   useEffect(() => {
     dispatch(fetchConnections());
@@ -144,9 +153,12 @@ export default function ConnectionsPage() {
 }
 
 function PendingCard({ connection, userId, onAccept, onDecline }) {
-  const seekerId = connection.seekerId?._id || connection.seekerId;
-  const isSeeker = seekerId === userId;
-  const otherUser = isSeeker ? connection.sageId : connection.seekerId;
+  const currentUserId = typeof userId === 'string' ? userId : userId?._id?.toString?.();
+  const seeker = connection.seekerId || connection.user1Id;
+  const sage = connection.sageId || connection.user2Id;
+  const seekerId = seeker?._id || seeker;
+  const isSeeker = (seekerId?.toString?.() || seekerId) === currentUserId;
+  const otherUser = isSeeker ? sage : seeker;
   const otherName = otherUser?.displayName || 'Someone';
 
   return (
@@ -196,9 +208,12 @@ function PendingCard({ connection, userId, onAccept, onDecline }) {
 }
 
 function ActiveCard({ connection, userId }) {
-  const seekerId = connection.seekerId?._id || connection.seekerId;
-  const isSeeker = seekerId === userId;
-  const otherUser = isSeeker ? connection.sageId : connection.seekerId;
+  const currentUserId = typeof userId === 'string' ? userId : userId?._id?.toString?.();
+  const seeker = connection.seekerId || connection.user1Id;
+  const sage = connection.sageId || connection.user2Id;
+  const seekerId = seeker?._id || seeker;
+  const isSeeker = (seekerId?.toString?.() || seekerId) === currentUserId;
+  const otherUser = isSeeker ? sage : seeker;
   const otherName = otherUser?.displayName || 'Someone';
 
   return (

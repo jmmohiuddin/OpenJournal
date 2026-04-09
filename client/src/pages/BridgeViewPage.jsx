@@ -138,8 +138,18 @@ export default function BridgeViewPage() {
     );
   }
 
-  const isSeeker = connection.seekerId?._id === user?._id;
-  const otherUser = isSeeker ? connection.sageId : connection.seekerId;
+  const getId = (value) => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    if (value._id) return value._id.toString();
+    if (value.id) return value.id.toString();
+    return value.toString?.() || null;
+  };
+  const currentUserId = getId(user?._id || user?.id || user);
+  const seeker = connection.seekerId || connection.user1Id;
+  const sage = connection.sageId || connection.user2Id;
+  const isSeeker = getId(seeker) === currentUserId;
+  const otherUser = isSeeker ? sage : seeker;
   const myEntry = isSeeker ? connection.problemEntryId : connection.solutionEntryId;
   const theirEntry = isSeeker ? connection.solutionEntryId : connection.problemEntryId;
 
