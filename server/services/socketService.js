@@ -5,6 +5,36 @@ import { generateWingmanMessage } from './aiService.js';
 
 let io = null;
 
+const toIdString = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (value._id) return value._id.toString();
+  return value.toString();
+};
+
+const getParticipantIds = (connection) => {
+  const ids = [
+    connection?.seekerId,
+    connection?.sageId,
+    connection?.user1Id,
+    connection?.user2Id
+  ]
+    .map(toIdString)
+    .filter(Boolean);
+  return [...new Set(ids)];
+};
+
+const connectionIncludesUser = (connection, userId) => {
+  return getParticipantIds(connection).includes(toIdString(userId));
+};
+
+const getProblemAndSolutionEntryIds = (connection) => {
+  return {
+    problemEntryId: connection.problemEntryId || connection.entry1Id,
+    solutionEntryId: connection.solutionEntryId || connection.entry2Id
+  };
+};
+
 function parseOriginList(value) {
   if (!value) return [];
   return value
@@ -62,9 +92,7 @@ export function initSocket(server) {
         const connection = await Connection.findById(connectionId);
         if (!connection) return;
 
-        const isParticipant = 
-          connection.seekerId.equals(socket.userId) ||
-          connection.sageId.equals(socket.userId);
+        const isParticipant = connectionIncludesUser(connection, socket.userId);
 
         if (isParticipant) {
           socket.join(`connection:${connectionId}`);
@@ -95,9 +123,7 @@ export function initSocket(server) {
         const connection = await Connection.findById(connectionId);
         if (!connection) return;
 
-        const isParticipant = 
-          connection.seekerId.equals(socket.userId) ||
-          connection.sageId.equals(socket.userId);
+        const isParticipant = connectionIncludesUser(connection, socket.userId);
 
         if (!isParticipant || connection.status === 'declined') return;
 
@@ -214,10 +240,13 @@ async function checkConversationHealth(connectionId, messages) {
 
     if (context) {
       // Load entries for context
+      const { problemEntryId, solutionEntryId } = getProblemAndSolutionEntryIds(connection);
       const [problemEntry, solutionEntry] = await Promise.all([
-        Entry.findById(connection.problemEntryId),
-        Entry.findById(connection.solutionEntryId)
+        Entry.findById(problemEntryId),
+        Entry.findById(solutionEntryId)
       ]);
+
+      if (!problemEntry || !solutionEntry) return;
 
       const wingmanMessage = await generateWingmanMessage(problemEntry, solutionEntry, context);
       

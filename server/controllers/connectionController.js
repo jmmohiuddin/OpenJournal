@@ -2,6 +2,39 @@ import { Connection, Message, Entry } from '../models/index.js';
 import { generateWingmanMessage } from '../services/aiService.js';
 import { notifyUser } from '../services/socketService.js';
 
+const toIdString = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (value._id) return value._id.toString();
+  return value.toString();
+};
+
+const getParticipantIds = (connection) => {
+  const ids = [
+    connection?.seekerId,
+    connection?.sageId,
+    connection?.user1Id,
+    connection?.user2Id
+  ]
+    .map(toIdString)
+    .filter(Boolean);
+  return [...new Set(ids)];
+};
+
+const isParticipant = (connection, userId) => {
+  const currentUserId = toIdString(userId);
+  return getParticipantIds(connection).includes(currentUserId);
+};
+
+const normalizeForClient = (connection) => {
+  const normalized = connection.toObject();
+  if (!normalized.seekerId && normalized.user1Id) normalized.seekerId = normalized.user1Id;
+  if (!normalized.sageId && normalized.user2Id) normalized.sageId = normalized.user2Id;
+  if (!normalized.problemEntryId && normalized.entry1Id) normalized.problemEntryId = normalized.entry1Id;
+  if (!normalized.solutionEntryId && normalized.entry2Id) normalized.solutionEntryId = normalized.entry2Id;
+  return normalized;
+};
+
 // @desc    Get all connections for current user
 // @route   GET /api/connections
 export const getConnections = async (req, res, next) => {
@@ -11,7 +44,9 @@ export const getConnections = async (req, res, next) => {
     const query = {
       $or: [
         { seekerId: req.user._id },
-        { sageId: req.user._id }
+        { sageId: req.user._id },
+        { user1Id: req.user._id },
+        { user2Id: req.user._id }
       ]
     };
 
@@ -24,11 +59,13 @@ export const getConnections = async (req, res, next) => {
     const connections = await Connection.find(query)
       .populate('seekerId', 'displayName')
       .populate('sageId', 'displayName')
+      .populate('user1Id', 'displayName')
+      .populate('user2Id', 'displayName')
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: connections
+      data: connections.map(normalizeForClient)
     });
   } catch (error) {
     next(error);
@@ -42,8 +79,12 @@ export const getConnectionDetails = async (req, res, next) => {
     const connection = await Connection.findById(req.params.id)
       .populate('seekerId', 'displayName photoURL')
       .populate('sageId', 'displayName photoURL')
+      .populate('user1Id', 'displayName photoURL')
+      .populate('user2Id', 'displayName photoURL')
       .populate('problemEntryId', 'content themes sentiment intentLabel')
-      .populate('solutionEntryId', 'content themes sentiment intentLabel');
+      .populate('solutionEntryId', 'content themes sentiment intentLabel')
+      .populate('entry1Id', 'content themes sentiment intentLabel')
+      .populate('entry2Id', 'content themes sentiment intentLabel');
 
     if (!connection) {
       return res.status(404).json({
@@ -52,22 +93,22 @@ export const getConnectionDetails = async (req, res, next) => {
       });
     }
 
-    // Verify user is participant
-    const isSeeker = connection.seekerId._id.equals(req.user._id);
-    const isSage = connection.sageId._id.equals(req.user._id);
-    const isParticipant = isSeeker || isSage;
-
-    if (!isParticipant) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this connection'
       });
     }
 
+    const normalized = normalizeForClient(connection);
+    const currentUserId = toIdString(req.user._id);
+    const seekerId = toIdString(normalized.seekerId);
+    const isSeeker = seekerId === currentUserId;
+    const isSage = toIdString(normalized.sageId) === currentUserId;
+
     // Differential Privacy: Only show full content after both accept
     const bothAccepted = connection.seekerAccepted && connection.sageAccepted;
-    
-    let responseData = connection.toObject();
+    let responseData = normalized;
     
     if (!bothAccepted) {
       // Obfuscate the other person's entry content until mutual acceptance
@@ -116,15 +157,17 @@ export const acceptConnection = async (req, res, next) => {
       });
     }
 
-    const isSeeker = connection.seekerId.equals(req.user._id);
-    const isSage = connection.sageId.equals(req.user._id);
-
-    if (!isSeeker && !isSage) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
       });
     }
+
+    const normalized = normalizeForClient(connection);
+    const currentUserId = toIdString(req.user._id);
+    const isSeeker = toIdString(normalized.seekerId) === currentUserId;
+    const isSage = toIdString(normalized.sageId) === currentUserId;
 
     // Update acceptance status
     if (isSeeker) connection.seekerAccepted = true;
@@ -137,29 +180,31 @@ export const acceptConnection = async (req, res, next) => {
       // Generate AI wingman opener
       try {
         const [problemEntry, solutionEntry] = await Promise.all([
-          Entry.findById(connection.problemEntryId),
-          Entry.findById(connection.solutionEntryId)
+          Entry.findById(normalized.problemEntryId),
+          Entry.findById(normalized.solutionEntryId)
         ]);
 
-        const wingmanMessage = await generateWingmanMessage(
-          problemEntry,
-          solutionEntry,
-          'opener'
-        );
+        if (problemEntry && solutionEntry) {
+          const wingmanMessage = await generateWingmanMessage(
+            problemEntry,
+            solutionEntry,
+            'opener'
+          );
 
-        await Message.create({
-          connectionId: connection._id,
-          senderId: null,
-          content: wingmanMessage,
-          type: 'ai_wingman'
-        });
+          await Message.create({
+            connectionId: connection._id,
+            senderId: null,
+            content: wingmanMessage,
+            type: 'ai_wingman'
+          });
+        }
       } catch (err) {
         console.error('Wingman message error:', err.message);
       }
 
       // Notify both users
-      const otherUserId = isSeeker ? connection.sageId : connection.seekerId;
-      notifyUser(otherUserId.toString(), 'connection_accepted', {
+      const otherUserId = isSeeker ? normalized.sageId : normalized.seekerId;
+      notifyUser(toIdString(otherUserId), 'connection_accepted', {
         connectionId: connection._id
       });
     }
@@ -168,7 +213,7 @@ export const acceptConnection = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: connection
+      data: normalizeForClient(connection)
     });
   } catch (error) {
     next(error);
@@ -188,11 +233,7 @@ export const declineConnection = async (req, res, next) => {
       });
     }
 
-    const isParticipant = 
-      connection.seekerId.equals(req.user._id) ||
-      connection.sageId.equals(req.user._id);
-
-    if (!isParticipant) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
@@ -224,11 +265,7 @@ export const getMessages = async (req, res, next) => {
       });
     }
 
-    const isParticipant = 
-      connection.seekerId.equals(req.user._id) ||
-      connection.sageId.equals(req.user._id);
-
-    if (!isParticipant) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
@@ -262,11 +299,7 @@ export const createMessage = async (req, res, next) => {
       });
     }
 
-    const isParticipant =
-      connection.seekerId.equals(req.user._id) ||
-      connection.sageId.equals(req.user._id);
-
-    if (!isParticipant) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
@@ -319,15 +352,17 @@ export const markFeedback = async (req, res, next) => {
       });
     }
 
-    const isSeeker = connection.seekerId.equals(req.user._id);
-    const isSage = connection.sageId.equals(req.user._id);
-
-    if (!isSeeker && !isSage) {
+    if (!isParticipant(connection, req.user._id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to provide feedback'
       });
     }
+
+    const normalized = normalizeForClient(connection);
+    const currentUserId = toIdString(req.user._id);
+    const isSeeker = toIdString(normalized.seekerId) === currentUserId;
+    const isSage = toIdString(normalized.sageId) === currentUserId;
 
     // Update based on role
     if (isSeeker) {
@@ -346,7 +381,7 @@ export const markFeedback = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: connection
+      data: normalizeForClient(connection)
     });
   } catch (error) {
     next(error);

@@ -144,7 +144,8 @@ export default function ConnectionsPage() {
 }
 
 function PendingCard({ connection, userId, onAccept, onDecline }) {
-  const isSeeker = connection.seekerId?._id === userId || connection.seekerId === userId;
+  const seekerId = connection.seekerId?._id || connection.seekerId;
+  const isSeeker = seekerId === userId;
   const otherUser = isSeeker ? connection.sageId : connection.seekerId;
   const otherName = otherUser?.displayName || 'Someone';
 
@@ -195,7 +196,8 @@ function PendingCard({ connection, userId, onAccept, onDecline }) {
 }
 
 function ActiveCard({ connection, userId }) {
-  const isSeeker = connection.seekerId?._id === userId || connection.seekerId === userId;
+  const seekerId = connection.seekerId?._id || connection.seekerId;
+  const isSeeker = seekerId === userId;
   const otherUser = isSeeker ? connection.sageId : connection.seekerId;
   const otherName = otherUser?.displayName || 'Someone';
 
