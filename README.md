@@ -45,6 +45,9 @@ npm run dev
 
 ### Environment Variables
 
+Use a single root `.env` file (`open-journal/.env`) for both client/server local runtime.  
+`server/.env` is deprecated in this project and should not be used.
+
 | Variable | Description |
 |----------|-------------|
 | `MONGODB_URI` | MongoDB connection string |
