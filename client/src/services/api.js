@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+function resolveApiUrl() {
+  const explicit = import.meta.env.VITE_API_URL;
+  if (explicit) return explicit;
+
+  // In production, force explicit env to avoid accidental localhost calls.
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+
+  return 'http://localhost:5000/api';
+}
+
+const API_URL = resolveApiUrl();
 
 const api = axios.create({
   baseURL: API_URL,

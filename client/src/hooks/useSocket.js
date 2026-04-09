@@ -3,7 +3,14 @@ import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
 import { addResonance } from '../store/connectionsSlice';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+function resolveSocketUrl() {
+  const explicit = import.meta.env.VITE_API_URL;
+  if (explicit) return explicit.replace('/api', '');
+  if (import.meta.env.PROD) return window.location.origin;
+  return 'http://localhost:5000';
+}
+
+const SOCKET_URL = resolveSocketUrl();
 
 export function useSocket() {
   const [socket, setSocket] = useState(null);

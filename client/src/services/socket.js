@@ -1,7 +1,14 @@
 import { io } from 'socket.io-client';
 import { store } from '../store';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5001';
+function resolveSocketUrl() {
+  const explicit = import.meta.env.VITE_API_URL;
+  if (explicit) return explicit.replace('/api', '');
+  if (import.meta.env.PROD) return window.location.origin;
+  return 'http://localhost:5001';
+}
+
+const SOCKET_URL = resolveSocketUrl();
 
 const socket = io(SOCKET_URL, {
   autoConnect: false,
