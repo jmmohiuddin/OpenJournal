@@ -84,7 +84,7 @@ app.use('/api', async (req, res, next) => {
     await ensureDatabaseConnection();
     next();
   } catch (error) {
-    next(error);
+    next(Object.assign(new Error(`Database connection failed: ${error.message}`), { statusCode: 503 }));
   }
 });
 
