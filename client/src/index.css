@@ -1,229 +1,420 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design Tokens
+   ───────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-alice-blue: #EDF2FB;
-  --color-lavender-web: #D7E3FC;
-  --color-blue-eyes: #ABC4FF;
-  --color-honeydew: #D6EADF;
-  --color-peach-crayola: #FFC09F;
-  
+  /* Palette */
+  --color-alice-blue:     #EDF2FB;
+  --color-lavender-web:   #D7E3FC;
+  --color-blue-eyes:      #ABC4FF;
+  --color-honeydew:       #D6EADF;
+  --color-peach-crayola:  #FFC09F;
+
+  /* Typography */
   --font-journal: 'Lora', Georgia, serif;
-  --font-system: 'Inter', system-ui, sans-serif;
+  --font-system:  'Inter', system-ui, sans-serif;
+
+  /* Spacing scale (used for consistent touch targets + padding) */
+  --sp-xs:  0.25rem;   /* 4px  */
+  --sp-sm:  0.5rem;    /* 8px  */
+  --sp-md:  1rem;      /* 16px */
+  --sp-lg:  1.5rem;    /* 24px */
+  --sp-xl:  2rem;      /* 32px */
+  --sp-2xl: 3rem;      /* 48px */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────────────────────── */
+html {
+  font-size: 100%;               /* Supports 200% zoom (accessibility) */
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   @apply bg-alice-blue font-system text-gray-800 antialiased;
+  /* Prevent horizontal overflow on mobile */
+  overflow-x: hidden;
+  /* Safe area insets for notched phones */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Tiptap Editor Styles */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Fluid Typography — scales from mobile → desktop with clamp()
+   ───────────────────────────────────────────────────────────────────────────── */
+.text-fluid-hero    { font-size: clamp(2rem,  6vw, 4.5rem); }
+.text-fluid-h1      { font-size: clamp(1.5rem, 4vw, 2.5rem); }
+.text-fluid-h2      { font-size: clamp(1.25rem, 3vw, 2rem);  }
+.text-fluid-h3      { font-size: clamp(1rem, 2.5vw, 1.5rem); }
+.text-fluid-body    { font-size: clamp(0.875rem, 2vw, 1rem); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Container — consistent max-width + responsive horizontal padding
+   ───────────────────────────────────────────────────────────────────────────── */
+.container-app {
+  width: 100%;
+  max-width: 48rem;           /* max-w-3xl equivalent */
+  margin-inline: auto;
+  padding-inline: 1rem;       /* 16px mobile */
+}
+
+@media (min-width: 640px)  { .container-app { padding-inline: 1.5rem; } }
+@media (min-width: 1024px) { .container-app { padding-inline: 2rem; } }
+
+/* Wide variant for pages that need more space */
+.container-wide {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+@media (min-width: 640px)  { .container-wide { padding-inline: 1.5rem; } }
+@media (min-width: 1024px) { .container-wide { padding-inline: 2rem; } }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Touch Targets — minimum 44×44px per Apple HIG / WCAG 2.5.5
+   ───────────────────────────────────────────────────────────────────────────── */
+.touch-target {
+  min-width:  2.75rem;   /* 44px */
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Increase touch targets on mobile automatically */
+@media (max-width: 767px) {
+  button, [role="button"], a, label[for] {
+    min-height: 2.75rem;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Liquid Glass Effect
+   Uses @supports to gracefully degrade on devices that can't handle blur
+   ───────────────────────────────────────────────────────────────────────────── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
+}
+@supports (backdrop-filter: blur(12px)) {
+  .glass-panel { backdrop-filter: blur(12px); }
+}
+
+.glass-panel-lg {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 48px rgba(31, 38, 135, 0.12);
+}
+@supports (backdrop-filter: blur(16px)) {
+  .glass-panel-lg { backdrop-filter: blur(16px); }
+}
+
+.glass-nav {
+  background: rgba(215, 227, 252, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+@supports (backdrop-filter: blur(12px)) {
+  .glass-nav { backdrop-filter: blur(12px); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tiptap Editor
+   ───────────────────────────────────────────────────────────────────────────── */
 .ProseMirror {
-  @apply outline-none min-h-[300px];
+  @apply outline-none;
+  min-height: 200px;
 }
-
+@media (min-width: 640px) {
+  .ProseMirror { min-height: 300px; }
+}
 .ProseMirror p.is-editor-empty:first-child::before {
   @apply text-gray-400 float-left h-0 pointer-events-none;
   content: attr(data-placeholder);
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Scrollbar (desktop only — hidden on touch)
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (hover: hover) {
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #EDF2FB; }
+  ::-webkit-scrollbar-thumb { background: #D7E3FC; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #ABC4FF; }
 }
 
-::-webkit-scrollbar-track {
-  @apply bg-alice-blue;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-lavender-web rounded-full;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-blue-eyes;
-}
-
-/* Line clamp utilities */
-.line-clamp-2 {
+/* ─────────────────────────────────────────────────────────────────────────────
+   Line Clamp Utilities
+   ───────────────────────────────────────────────────────────────────────────── */
+.line-clamp-2, .line-clamp-3, .line-clamp-4, .line-clamp-6 {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.line-clamp-2  { -webkit-line-clamp: 2; }
+.line-clamp-3  { -webkit-line-clamp: 3; }
+.line-clamp-4  { -webkit-line-clamp: 4; }
+.line-clamp-6  { -webkit-line-clamp: 6; }
 
-.line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Animations */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Animations
+   ───────────────────────────────────────────────────────────────────────────── */
 @keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-
 @keyframes pulse-soft {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
 }
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.2s ease-out;
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 2s ease-in-out infinite;
-}
-
 @keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-up-sheet {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes scroll-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.animate-slide-up        { animation: slide-up        0.3s ease-out; }
+.animate-slide-down      { animation: slide-down      0.25s ease-out; }
+.animate-fade-in         { animation: fade-in         0.2s ease-out; }
+.animate-pulse-soft      { animation: pulse-soft      2s ease-in-out infinite; }
+.animate-slide-in        { animation: slide-in        0.3s ease-out; }
+.animate-slide-in-left   { animation: slide-in-left   0.3s ease-out; }
+.animate-slide-up-sheet  { animation: slide-up-sheet  0.35s cubic-bezier(0.4,0,0.2,1); }
+.animate-scroll-x        { animation: scroll-x        28s linear infinite; }
+
+/* Honour reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:   0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration:  0.01ms !important;
+    scroll-behavior:      auto !important;
   }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
-
-/* Liquid Glass Effect */
-.glass-panel {
-  @apply bg-white/40 backdrop-blur-md rounded-2xl border border-white/20;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-}
-
-.glass-panel-lg {
-  @apply bg-white/50 backdrop-blur-md rounded-3xl border border-white/30;
-  box-shadow: 0 8px 48px 0 rgba(31, 38, 135, 0.12);
-}
-
-.glass-nav {
-  @apply bg-lavender-web/60 backdrop-blur-md border border-white/20;
-}
-
-/* Typography Utilities */
-.text-user-content {
-  @apply font-journal;
-}
-
-.text-system {
-  @apply font-system;
-}
-
-/* Interactive Elements */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Buttons
+   ───────────────────────────────────────────────────────────────────────────── */
 .btn-primary {
-  @apply bg-blue-eyes hover:bg-blue-eyes/90 text-white font-system font-medium 
-         px-6 py-2.5 rounded-xl transition-all duration-200 
-         hover:scale-[1.02] hover:shadow-lg active:scale-[0.98];
+  @apply bg-blue-eyes text-white font-system font-medium
+         px-5 py-2.5 rounded-xl
+         transition-all duration-200
+         hover:bg-blue-eyes/90
+         hover:scale-[1.02] hover:shadow-lg
+         active:scale-[0.98]
+         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+  min-height: 2.75rem;
 }
-
 .btn-secondary {
-  @apply bg-lavender-web hover:bg-lavender-web/80 text-gray-700 font-system font-medium 
-         px-6 py-2.5 rounded-xl transition-all duration-200 
-         hover:scale-[1.02] hover:shadow-md active:scale-[0.98];
+  @apply bg-lavender-web text-gray-700 font-system font-medium
+         px-5 py-2.5 rounded-xl
+         transition-all duration-200
+         hover:bg-lavender-web/80
+         hover:scale-[1.02] hover:shadow-md
+         active:scale-[0.98];
+  min-height: 2.75rem;
 }
-
 .btn-ghost {
-  @apply bg-transparent hover:bg-white/20 text-gray-700 font-system font-medium 
-         px-6 py-2.5 rounded-xl transition-all duration-200 
-         hover:backdrop-blur-sm active:scale-[0.98];
+  @apply bg-transparent text-gray-700 font-system font-medium
+         px-5 py-2.5 rounded-xl
+         transition-all duration-200
+         hover:bg-white/20 active:scale-[0.98];
+  min-height: 2.75rem;
 }
-
 .btn-success {
-  @apply bg-honeydew hover:bg-honeydew/90 text-green-800 font-system font-medium 
-         px-6 py-2.5 rounded-xl transition-all duration-200 
-         hover:scale-[1.02] hover:shadow-md active:scale-[0.98];
+  @apply bg-honeydew text-green-800 font-system font-medium
+         px-5 py-2.5 rounded-xl
+         transition-all duration-200
+         hover:bg-honeydew/90
+         hover:scale-[1.02] hover:shadow-md
+         active:scale-[0.98];
+  min-height: 2.75rem;
 }
-
 .btn-alert {
-  @apply bg-peach-crayola hover:bg-peach-crayola/90 text-orange-900 font-system font-medium 
-         px-6 py-2.5 rounded-xl transition-all duration-200 
-         hover:scale-[1.02] hover:shadow-md active:scale-[0.98];
+  @apply bg-peach-crayola text-orange-900 font-system font-medium
+         px-5 py-2.5 rounded-xl
+         transition-all duration-200
+         hover:bg-peach-crayola/90
+         hover:scale-[1.02] hover:shadow-md
+         active:scale-[0.98];
+  min-height: 2.75rem;
 }
 
-/* Card Styles */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Cards
+   ───────────────────────────────────────────────────────────────────────────── */
 .card-glass {
-  @apply bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 p-6 transition-all duration-300;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1.25rem;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
 }
-
-.card-glass:hover {
-  box-shadow: 0 8px 48px 0 rgba(31, 38, 135, 0.12);
+@supports (backdrop-filter: blur(12px)) {
+  .card-glass { backdrop-filter: blur(12px); }
 }
+@media (min-width: 640px) { .card-glass { padding: 1.5rem; } }
+.card-glass:hover { box-shadow: 0 8px 48px rgba(31, 38, 135, 0.12); }
 
 .card-resonance {
-  @apply bg-white/40 backdrop-blur-md rounded-2xl border-2 border-blue-eyes/30 p-6 transition-all duration-300;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 1rem;
+  border: 2px solid rgba(171, 196, 255, 0.3);
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
 }
-
+@supports (backdrop-filter: blur(12px)) {
+  .card-resonance { backdrop-filter: blur(12px); }
+}
+@media (min-width: 640px) { .card-resonance { padding: 1.5rem; } }
 .card-resonance:hover {
-  @apply border-blue-eyes/50;
-  box-shadow: 0 8px 48px 0 rgba(31, 38, 135, 0.12);
+  border-color: rgba(171, 196, 255, 0.5);
+  box-shadow: 0 8px 48px rgba(31, 38, 135, 0.12);
 }
 
-/* AI Highlight */
+/* ─────────────────────────────────────────────────────────────────────────────
+   AI Highlight Styles
+   ───────────────────────────────────────────────────────────────────────────── */
 .ai-prompt {
-  @apply bg-peach-crayola/20 border-l-4 border-peach-crayola 
+  @apply bg-peach-crayola/20 border-l-4 border-peach-crayola
          pl-4 py-2 rounded-r-lg font-system text-sm;
 }
-
 .ai-suggestion {
-  @apply bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 p-4 font-system text-gray-600 
-         hover:bg-white/60 transition-all duration-200;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem;
+  font-family: var(--font-system);
+  color: #4B5563;
+  transition: background 0.2s ease;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
 }
+@supports (backdrop-filter: blur(12px)) {
+  .ai-suggestion { backdrop-filter: blur(12px); }
+}
+.ai-suggestion:hover { background: rgba(255, 255, 255, 0.6); }
 
-/* Success State */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Typography
+   ───────────────────────────────────────────────────────────────────────────── */
+.text-user-content { @apply font-journal; }
+.text-system       { @apply font-system; }
 .success-indicator {
-  @apply bg-honeydew/30 border-l-4 border-honeydew 
-         pl-4 py-2 rounded-r-lg text-green-800;
+  @apply bg-honeydew/30 border-l-4 border-honeydew pl-4 py-2 rounded-r-lg text-green-800;
 }
 
-/* Smooth Transitions */
-* {
-  @apply transition-colors duration-200 ease-in-out;
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   Smooth Transitions (honours reduced-motion via the block above)
+   ───────────────────────────────────────────────────────────────────────────── */
+* { transition-property: color, background-color, border-color, opacity; transition-duration: 150ms; transition-timing-function: ease; }
+button, a { transition-property: all; transition-duration: 200ms; transition-timing-function: ease; }
 
-button, a {
-  @apply transition-all duration-200 ease-in-out;
-}
-
-/* Focus Styles for Accessibility */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Focus Styles — WCAG 2.1 AA compliant
+   ───────────────────────────────────────────────────────────────────────────── */
 *:focus-visible {
-  @apply outline-2 outline-blue-eyes outline-offset-2;
+  outline: 2px solid #ABC4FF;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
-/* Text Scaling Support (200% accessible) */
-html {
-  font-size: 100%;
+/* ─────────────────────────────────────────────────────────────────────────────
+   Form Inputs — prevent iOS zoom (font-size must be ≥ 16px)
+   ───────────────────────────────────────────────────────────────────────────── */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+  font-size: 1rem;   /* 16px — prevents iOS auto-zoom on focus */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Mobile Slide-over Sidebar Overlay
+   ───────────────────────────────────────────────────────────────────────────── */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 38, 135, 0.25);
+  z-index: 40;
+  animation: fade-in 0.2s ease-out;
+}
+@supports (backdrop-filter: blur(4px)) {
+  .sidebar-overlay { backdrop-filter: blur(4px); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Floating Action Button (FAB) — for mobile primary action
+   ───────────────────────────────────────────────────────────────────────────── */
+.fab {
+  position: fixed;
+  bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  right: 1.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  box-shadow: 0 4px 20px rgba(31, 38, 135, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.fab:active { transform: scale(0.95); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Bottom Sheet — for mobile context panels
+   ───────────────────────────────────────────────────────────────────────────── */
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 1.5rem 1.5rem 0 0;
+  z-index: 50;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  animation: slide-up-sheet 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.bottom-sheet-handle {
+  width: 2.5rem;
+  height: 0.25rem;
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 9999px;
+  margin: 0.75rem auto 1rem;
+  flex-shrink: 0;
 }

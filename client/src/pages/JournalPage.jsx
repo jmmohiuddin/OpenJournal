@@ -15,12 +15,12 @@ export default function JournalPage() {
   };
 
   return (
-    <div className="py-8">
-      <div className="max-w-3xl mx-auto mb-8">
-        <h1 className="text-3xl font-semibold text-gray-800 mb-2 font-journal">
+    <div className="py-4 sm:py-8">
+      <div className="container-app mb-4 sm:mb-8">
+        <h1 className="text-fluid-h1 font-semibold text-gray-800 mb-1.5 font-journal">
           Today's Reflection
         </h1>
-        <p className="text-gray-600 font-system">
+        <p className="text-gray-500 font-system text-sm sm:text-base">
           Take a moment to capture your thoughts, challenges, or insights.
         </p>
       </div>

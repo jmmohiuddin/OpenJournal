@@ -462,6 +462,7 @@ export default function LandingPage() {
   const navigate                        = useNavigate();
   const { isAuthenticated, user }       = useSelector(state => state.auth);
   const [scrolled,           setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -561,8 +562,8 @@ export default function LandingPage() {
             <Link to="/privacy" className="hover:text-gray-800 transition-colors">Privacy</Link>
           </div>
 
-          {/* Auth CTA */}
-          <div className="flex items-center gap-3">
+          {/* Auth CTA (Desktop) */}
+          <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <button
                 onClick={() => navigate('/journal')}
@@ -589,6 +590,43 @@ export default function LandingPage() {
               </>
             )}
           </div>
+
+            {/* Mobile Nav Hamburger */}
+            <button
+              className="md:hidden touch-target text-gray-600 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                {mobileMenuOpen ? (
+                  <path d="M18 6L6 18M6 6l12 12" />
+                ) : (
+                  <>
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
+          
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="md:hidden absolute top-16 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-lavender-web shadow-lg flex flex-col px-6 py-4 gap-4 animate-slide-down">
+              <a href="#how" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 font-medium py-2 border-b border-alice-blue">How It Works</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 font-medium py-2 border-b border-alice-blue">Pricing</a>
+              <a href="#community" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 font-medium py-2 border-b border-alice-blue">Community</a>
+              <Link to="/privacy" onClick={() => setMobileMenuOpen(false)} className="text-gray-600 font-medium py-2">Privacy</Link>
+              
+              {!isAuthenticated && (
+                <div className="flex flex-col gap-2 pt-2">
+                  <button onClick={() => { setMobileMenuOpen(false); goToLogin(); }} className="py-2.5 rounded-xl font-medium border border-lavender-web text-gray-700">Sign in</button>
+                  <button onClick={() => { setMobileMenuOpen(false); goToApp(); }} className="py-2.5 rounded-xl font-medium bg-blue-eyes text-white">Begin Free</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
@@ -612,7 +650,7 @@ export default function LandingPage() {
 
           {/* Headline — Lora serif */}
           <h1
-            className="font-journal text-5xl md:text-6xl lg:text-7xl text-gray-800 leading-tight mb-6"
+            className="font-journal text-fluid-hero text-gray-800 leading-tight mb-6"
             style={{ letterSpacing: '-0.02em' }}
           >
             End the isolation

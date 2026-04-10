@@ -592,14 +592,14 @@ export default function ResonanceProfilePage() {
   const wasMyCall  = (isSeeker && connection.seekerAccepted) || (!isSeeker && connection.sageAccepted);
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 animate-fade-in">
+    <div className="max-w-4xl mx-auto py-4 sm:py-8 px-2 sm:px-4 animate-fade-in">
 
       {/* ── Back ──────────────────────────────────────────────────────────── */}
       <Link
         to="/connections"
-        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-8 transition-colors"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-5 sm:mb-8 transition-colors"
       >
-        <span>←</span> Back to Resonance Feed
+        <span>←</span> <span className="hidden xs:inline">Back to </span>Resonance Feed
       </Link>
 
       {/* ── Hero card ─────────────────────────────────────────────────────── */}
@@ -687,11 +687,11 @@ export default function ResonanceProfilePage() {
         </div>
       </div>
 
-      {/* ── Layout: left data panels + right action rail ───────────────────── */}
-      <div className="grid md:grid-cols-3 gap-6">
+      {/* ── Layout: mobile stacks action-first, desktop 3-col grid ──────────── */}
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-6">
 
-        {/* ── Left: detail tabs (spans 2 cols) ─────────────────────────────── */}
-        <div className="md:col-span-2 space-y-5">
+        {/* ── Tab detail panel: shows SECOND on mobile, left 2 cols on desktop ── */}
+        <div className="order-last md:order-first md:col-span-2 space-y-5">
 
           {/* Tab bar */}
           <div
@@ -699,10 +699,10 @@ export default function ResonanceProfilePage() {
             style={{ background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(215,227,252,0.4)', backdropFilter: 'blur(8px)' }}
           >
             {[
-              { id: 'why',     label: '🧭 Why We Match' },
-              { id: 'radar',   label: '📡 Resonance Radar' },
-              { id: 'thoughts',label: '💬 Shared Thoughts' },
-            ].map(({ id, label }) => (
+              { id: 'why',     label: '🧭', fullLabel: 'Why We Match'   },
+              { id: 'radar',   label: '📡', fullLabel: 'Resonance Radar' },
+              { id: 'thoughts',label: '💬', fullLabel: 'Shared Thoughts' },
+            ].map(({ id, label, fullLabel }) => (
               <button
                 key={id}
                 onClick={() => setTab(id)}
@@ -713,7 +713,8 @@ export default function ResonanceProfilePage() {
                   boxShadow: tab === id ? '0 2px 8px rgba(171,196,255,0.35)' : 'none',
                 }}
               >
-                {label}
+                <span className="sm:hidden">{label}</span>
+                <span className="hidden sm:inline">{label} {fullLabel}</span>
               </button>
             ))}
           </div>
@@ -873,15 +874,6 @@ export default function ResonanceProfilePage() {
             </div>
           )}
         </div>
-
-        {/* ── Right: Action Rail ───────────────────────────────────────────── */}
-        <div className="space-y-4">
-
-          {/* Privacy Guard — always on top */}
-          <PrivacyGuard
-            discoverable={discoverable}
-            onToggle={() => setDiscoverable(d => !d)}
-          />
 
           {/* Action panel */}
           {isPending && !handshakeDone && (

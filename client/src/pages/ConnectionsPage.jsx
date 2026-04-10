@@ -249,10 +249,10 @@ function ResonanceCard({ connection, userId, onAccept, onDecline, delay = 0 }) {
           )}
 
           {/* Action row */}
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center flex-wrap sm:flex-nowrap">
             <Link
               to={`/connections/${connection._id}/resonance`}
-              className="flex-1 py-2 rounded-xl text-xs font-medium text-center transition-all duration-200"
+              className="flex-1 touch-target rounded-xl text-xs font-medium text-center transition-all duration-200"
               style={{
                 background: 'rgba(171,196,255,0.18)',
                 color: '#4B6FAA',
@@ -264,7 +264,7 @@ function ResonanceCard({ connection, userId, onAccept, onDecline, delay = 0 }) {
             <button
               onClick={handleAccept}
               disabled={accepting}
-              className="px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200"
+              className="touch-target px-3 rounded-xl text-xs font-medium transition-all duration-200"
               style={{
                 background: 'linear-gradient(135deg,#ABC4FF,#9DC4B0)',
                 color: '#fff',
@@ -276,7 +276,7 @@ function ResonanceCard({ connection, userId, onAccept, onDecline, delay = 0 }) {
             </button>
             <button
               onClick={(e) => { e.preventDefault(); onDecline(); }}
-              className="px-3 py-2 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+              className="touch-target px-3 rounded-xl text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
               style={{ background: 'rgba(255,255,255,0.4)', border: '1px solid rgba(215,227,252,0.4)' }}
             >
               Pass
@@ -472,11 +472,12 @@ export default function ConnectionsPage() {
       {/* Stats bar */}
       {hasAny && !loading && (
         <div
-          className="flex gap-4 mb-8 p-3 rounded-2xl flex-wrap"
+          className="flex gap-4 mb-8 p-3 rounded-2xl overflow-x-auto hide-scrollbar whitespace-nowrap"
           style={{
             background: 'rgba(255,255,255,0.4)',
             border: '1px solid rgba(215,227,252,0.4)',
             backdropFilter: 'blur(10px)',
+            WebkitOverflowScrolling: 'touch',
           }}
         >
           {[
