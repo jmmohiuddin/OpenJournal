@@ -6,7 +6,8 @@ import {
   declineConnection,
   getMessages,
   createMessage,
-  markFeedback
+  markFeedback,
+  triggerMatchRefresh
 } from '../controllers/connectionController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -16,6 +17,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get('/', getConnections);
+router.post('/refresh-matches', triggerMatchRefresh);  // admin/cron: trigger global matching
 router.get('/:id', getConnectionDetails);
 router.get('/:id/messages', getMessages);
 router.post('/:id/messages', createMessage);

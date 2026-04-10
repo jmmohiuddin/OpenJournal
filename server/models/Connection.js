@@ -136,8 +136,11 @@ connectionSchema.index({ user2Id: 1, status: 1 });
 connectionSchema.index({ seekerId: 1, status: 1 });
 connectionSchema.index({ sageId: 1, status: 1 });
 connectionSchema.index({ connectionType: 1, status: 1 });
+// Sort index for paginated list queries
+connectionSchema.index({ createdAt: -1 });
 
 // Prevent duplicate connections for same entry pair (order-independent)
+// Both indexes are sparse so null values never collide
 connectionSchema.index({ entry1Id: 1, entry2Id: 1 }, { unique: true, sparse: true });
 connectionSchema.index({ problemEntryId: 1, solutionEntryId: 1 }, { unique: true, sparse: true });
 

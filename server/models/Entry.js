@@ -68,7 +68,10 @@ const entrySchema = new mongoose.Schema({
 // Index for user's entries sorted by date
 entrySchema.index({ userId: 1, createdAt: -1 });
 
-// Index for discoverable entries by intent
-entrySchema.index({ isDiscoverable: 1, intentLabel: 1 });
+// Compound index for discoverable+processed entries by intent (used by matching candidate queries)
+entrySchema.index({ isDiscoverable: 1, aiProcessed: 1, intentLabel: 1 });
+
+// Index for fetching all discoverable entries for a user quickly
+entrySchema.index({ isDiscoverable: 1, userId: 1 });
 
 export default mongoose.model('Entry', entrySchema);

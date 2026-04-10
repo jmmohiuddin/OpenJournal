@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
-import { addResonance } from '../store/connectionsSlice';
+import { upsertConnection, enrichConnection } from '../store/connectionsSlice';
 
 const DEPLOYED_SOCKET_URL = 'https://open-journal-server.vercel.app';
 
@@ -71,9 +71,32 @@ export function useSocket() {
       console.error('Socket connection error:', err.message);
     });
 
-    // Listen for resonance notifications
+    // Listen for resonance notifications — upsert a full pending connection card
     newSocket.on('resonance', (data) => {
-      dispatch(addResonance(data));
+      if (!data?.connectionId) return;
+      dispatch(upsertConnection({
+        _id:             data.connectionId,
+        connectionType:  data.connectionType,
+        bridgeMessage:   data.bridgeMessage,
+        similarityScore: data.similarity,
+        status:          'pending',
+        seekerAccepted:  false,
+        sageAccepted:    false,
+        _myRole:         data.role,
+        _theirEntry:     data.theirEntry,
+        _summary:        data.summary,
+        sharedThemes:    data.sharedThemes || []
+      }));
+    });
+
+    // AI enrichment patch — bridge message is now AI-generated
+    newSocket.on('connection_enriched', (data) => {
+      if (!data?.connectionId) return;
+      dispatch(enrichConnection({
+        connectionId:  data.connectionId,
+        bridgeMessage: data.bridgeMessage,
+        summary:       data.summary
+      }));
     });
 
     setSocket(newSocket);
