@@ -15,6 +15,7 @@ import CirclesPage from './pages/CirclesPage';
 import CircleViewPage from './pages/CircleViewPage';
 import CreateCirclePage from './pages/CreateCirclePage';
 import PrivacyPage from './pages/PrivacyPage';
+import LandingPage from './pages/LandingPage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
 
@@ -42,6 +43,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Landing page — public, no auth, shown to everyone */}
+        <Route path="/welcome" element={<LandingPage />} />
+
         {/* Public routes */}
         <Route path="/login" element={
           <PublicRoute><LoginPage /></PublicRoute>
@@ -72,6 +76,7 @@ export default function App() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="privacy" element={<PrivacyPage />} />
+          <Route path="welcome" element={<LandingPage />} />
         </Route>
 
         {/* Bridge view (full screen, no sidebar) */}
