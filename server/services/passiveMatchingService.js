@@ -14,6 +14,8 @@ const FALLBACK_MIN_THRESHOLD = parseFloat(process.env.MATCH_FALLBACK_MIN_THRESHO
 
 const MAX_MATCHES_PER_ENTRY = 5;
 const BATCH_SIZE = 50;
+const KNOWN_INTENTS = ['Problem', 'Solution', 'Reflection'];
+const AI_CALL_TIMEOUT_MS = parseInt(process.env.MATCH_AI_TIMEOUT_MS || '4000', 10);
 
 /**
  * Run passive matching for all unmatched discoverable entries
@@ -30,8 +32,7 @@ export async function runPassiveMatching(options = {}) {
   console.log('🔍 Starting passive matching scan...');
   
   const query = {
-    isDiscoverable: true,
-    aiProcessed: true
+    isDiscoverable: true
   };
   
   if (userId) query.userId = userId;
@@ -118,7 +119,7 @@ function getMatchTypesForIntent(intentLabel) {
     case 'Reflection':
       return ['kindred-spirits', 'insight-share'];
     default:
-      return ['insight-share'];
+      return ['seeker-sage', 'solidarity', 'wisdom-exchange', 'kindred-spirits', 'insight-share'];
   }
 }
 
@@ -127,12 +128,13 @@ function getMatchTypesForIntent(intentLabel) {
  */
 async function findMatchesByType(sourceEntry, connectionType) {
   const threshold = THRESHOLDS[connectionType];
+  const sourceIntent = resolveIntent(sourceEntry);
   let targetIntents;
   
   switch (connectionType) {
     case 'seeker-sage':
       // Problem looks for Solution, Solution looks for Problem
-      targetIntents = sourceEntry.intentLabel === 'Problem' ? ['Solution'] : ['Problem'];
+      targetIntents = sourceIntent === 'Problem' ? ['Solution'] : sourceIntent === 'Solution' ? ['Problem'] : ['Problem', 'Solution'];
       break;
     case 'solidarity':
       // Problem looks for Problem (shared struggles)
@@ -156,9 +158,7 @@ async function findMatchesByType(sourceEntry, connectionType) {
 
   // Find candidate entries
   const candidates = await Entry.find({
-    intentLabel: { $in: targetIntents },
     isDiscoverable: true,
-    aiProcessed: true,
     userId: { $ne: sourceEntry.userId }, // Don't match with own entries
     _id: { $ne: sourceEntry._id }
   })
@@ -171,14 +171,20 @@ async function findMatchesByType(sourceEntry, connectionType) {
   console.log(`   Checking ${candidates.length} candidates for ${connectionType}`);
   
   for (const candidate of candidates) {
+    const candidateIntent = resolveIntent(candidate);
+    if (!targetIntents.includes(candidateIntent)) {
+      continue;
+    }
     const similarity = computeSimilarity(sourceEntry, candidate);
     
-    console.log(`   Similarity: ${similarity.toFixed(3)} (threshold: ${threshold.toFixed(3)}) - ${candidate.intentLabel}`);
+    console.log(`   Similarity: ${similarity.toFixed(3)} (threshold: ${threshold.toFixed(3)}) - ${candidateIntent}`);
     
     scoredCandidates.push({
       entry: candidate,
       similarity,
-      connectionType
+      connectionType,
+      sourceIntent,
+      candidateIntent
     });
   }
 
@@ -222,14 +228,14 @@ async function createConnection(entry1, match) {
   try {
     const entry2 = match.entry;
     const connectionType = match.connectionType;
+    const sourceIntent = match.sourceIntent || resolveIntent(entry1);
+    const candidateIntent = match.candidateIntent || resolveIntent(entry2);
     
-    // Generate appropriate bridge message based on connection type
-    const bridgeMessage = await generateBridgeMessage(entry1, entry2, connectionType);
-    
-    // Generate privacy-preserving summaries
-    const [summary1, summary2] = await Promise.all([
-      aiService.generateEntrySummary(entry1),
-      aiService.generateEntrySummary(entry2)
+    // Generate copy with strict timeout + deterministic fallbacks.
+    const [bridgeMessage, summary1, summary2] = await Promise.all([
+      safelyGenerateBridgeMessage(entry1, entry2, connectionType),
+      safelyGenerateEntrySummary(entry1),
+      safelyGenerateEntrySummary(entry2)
     ]);
 
     // Build connection data
@@ -239,6 +245,9 @@ async function createConnection(entry1, match) {
       user2Id: entry2.userId,
       entry1Id: entry1._id,
       entry2Id: entry2._id,
+      // Always set legacy pair fields to avoid null/null unique-index collisions.
+      problemEntryId: entry1._id,
+      solutionEntryId: entry2._id,
       similarityScore: match.similarity,
       combinedScore: match.similarity,
       bridgeMessage,
@@ -248,7 +257,7 @@ async function createConnection(entry1, match) {
 
     // For seeker-sage type, also populate legacy fields
     if (connectionType === 'seeker-sage') {
-      if (entry1.intentLabel === 'Problem') {
+      if (sourceIntent === 'Problem' && candidateIntent === 'Solution') {
         connectionData.seekerId = entry1.userId;
         connectionData.sageId = entry2.userId;
         connectionData.problemEntryId = entry1._id;
@@ -259,6 +268,9 @@ async function createConnection(entry1, match) {
         connectionData.problemEntryId = entry2._id;
         connectionData.solutionEntryId = entry1._id;
       }
+    } else {
+      connectionData.seekerId = entry1.userId;
+      connectionData.sageId = entry2.userId;
     }
 
     const connection = await Connection.create(connectionData);
@@ -300,7 +312,7 @@ async function createConnection(entry1, match) {
 
     // Add role information based on connection type
     if (connectionType === 'seeker-sage') {
-      if (entry1.intentLabel === 'Problem') {
+      if (sourceIntent === 'Problem' && candidateIntent === 'Solution') {
         notificationPayload1.role = 'seeker';
         notificationPayload2.role = 'sage';
       } else {
@@ -363,8 +375,9 @@ Person 2 (${entry2.intentLabel}): ${entry2.themes?.join(', ')}`
 
   if (connectionType === 'seeker-sage') {
     // Use existing method for seeker-sage
-    const problemEntry = entry1.intentLabel === 'Problem' ? entry1 : entry2;
-    const solutionEntry = entry1.intentLabel === 'Solution' ? entry1 : entry2;
+    const entry1Intent = resolveIntent(entry1);
+    const problemEntry = entry1Intent === 'Problem' ? entry1 : entry2;
+    const solutionEntry = entry1Intent === 'Solution' ? entry1 : entry2;
     return await aiService.generateBridgeMessage(problemEntry, solutionEntry);
   }
 
@@ -378,6 +391,48 @@ Person 2 (${entry2.intentLabel}): ${entry2.themes?.join(', ')}`
     console.error('Error generating bridge message:', error.message);
     return getDefaultBridgeMessage(connectionType);
   }
+}
+
+async function safelyGenerateBridgeMessage(entry1, entry2, connectionType) {
+  try {
+    return await withTimeout(
+      generateBridgeMessage(entry1, entry2, connectionType),
+      AI_CALL_TIMEOUT_MS,
+      `bridge message timeout for ${connectionType}`
+    );
+  } catch (error) {
+    console.error('Bridge generation fallback:', error.message);
+    return getDefaultBridgeMessage(connectionType);
+  }
+}
+
+async function safelyGenerateEntrySummary(entry) {
+  try {
+    return await withTimeout(
+      aiService.generateEntrySummary(entry),
+      AI_CALL_TIMEOUT_MS,
+      'entry summary timeout'
+    );
+  } catch (error) {
+    console.error('Summary generation fallback:', error.message);
+    return getHeuristicSummary(entry);
+  }
+}
+
+function getHeuristicSummary(entry) {
+  const mood = entry?.sentiment?.mood || 'thoughtful';
+  const intent = resolveIntent(entry).toLowerCase();
+  const primaryTheme = (entry?.themes && entry.themes[0]) ? entry.themes[0] : 'life';
+  return `A ${mood} ${intent} about ${primaryTheme}.`;
+}
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs)
+    )
+  ]);
 }
 
 /**
@@ -436,6 +491,27 @@ function computeSimilarity(entryA, entryB) {
 
   // Themes are denser intent signals than raw token overlap.
   return (themeScore * 0.65) + (tokenScore * 0.35);
+}
+
+function resolveIntent(entry) {
+  const labeledIntent = entry?.intentLabel;
+  if (KNOWN_INTENTS.includes(labeledIntent)) {
+    return labeledIntent;
+  }
+
+  const text = `${entry?.content || ''}`.toLowerCase();
+  const themes = (entry?.themes || []).join(' ').toLowerCase();
+  const combined = `${text} ${themes}`;
+
+  const problemSignals = ['stuck', 'struggle', 'anxious', 'anxiety', 'overwhelmed', 'need help', 'cannot', "can't", 'problem', 'difficult', 'hard'];
+  const solutionSignals = ['helped me', 'what worked', 'steps', 'framework', 'routine', 'advice', 'tip', 'solution', 'try this', 'recommend'];
+
+  const problemHits = problemSignals.reduce((count, token) => count + (combined.includes(token) ? 1 : 0), 0);
+  const solutionHits = solutionSignals.reduce((count, token) => count + (combined.includes(token) ? 1 : 0), 0);
+
+  if (solutionHits > problemHits) return 'Solution';
+  if (problemHits > 0) return 'Problem';
+  return 'Reflection';
 }
 
 function tokenize(text) {
@@ -497,7 +573,7 @@ export async function getMatchStats(entryId) {
     return { potentialMatches: 0, byType: {} };
   }
 
-  const matchTypes = getMatchTypesForIntent(entry.intentLabel);
+  const matchTypes = getMatchTypesForIntent(resolveIntent(entry));
   const stats = { potentialMatches: 0, byType: {} };
 
   for (const type of matchTypes) {
