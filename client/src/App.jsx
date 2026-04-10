@@ -7,6 +7,7 @@ import JournalPage from './pages/JournalPage';
 import EntriesPage from './pages/EntriesPage';
 import EntryDetailPage from './pages/EntryDetailPage';
 import ConnectionsPage from './pages/ConnectionsPage';
+import ResonanceProfilePage from './pages/ResonanceProfilePage';
 import BridgeViewPage from './pages/BridgeViewPage';
 import InsightsPage from './pages/InsightsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -70,6 +71,7 @@ export default function App() {
           <Route path="entries" element={<EntriesPage />} />
           <Route path="entry/:id" element={<EntryDetailPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
+          <Route path="connections/:connectionId/resonance" element={<ResonanceProfilePage />} />
           <Route path="circles" element={<CirclesPage />} />
           <Route path="circles/new" element={<CreateCirclePage />} />
           <Route path="insights" element={<InsightsPage />} />
