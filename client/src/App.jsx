@@ -14,6 +14,7 @@ import ProfilePage from './pages/ProfilePage';
 import CirclesPage from './pages/CirclesPage';
 import CircleViewPage from './pages/CircleViewPage';
 import CreateCirclePage from './pages/CreateCirclePage';
+import PrivacyPage from './pages/PrivacyPage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
 
@@ -48,6 +49,8 @@ export default function App() {
         <Route path="/register" element={
           <PublicRoute><RegisterPage /></PublicRoute>
         } />
+        {/* Privacy policy — public, no auth required */}
+        <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Onboarding (protected but no layout) */}
         <Route path="/onboarding" element={
@@ -68,6 +71,7 @@ export default function App() {
           <Route path="insights" element={<InsightsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
         </Route>
 
         {/* Bridge view (full screen, no sidebar) */}

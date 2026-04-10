@@ -87,6 +87,23 @@ export default function Sidebar() {
             </button>
           </div>
         </NavLink>
+
+        {/* Privacy link */}
+        <div className="mt-2 px-3">
+          <NavLink
+            to="/privacy"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-system transition-all duration-200 ${
+                isActive
+                  ? 'text-blue-600 bg-lavender-web/50'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-white/30'
+              }`
+            }
+          >
+            <span>🔐</span>
+            <span>Privacy Policy</span>
+          </NavLink>
+        </div>
       </div>
     </aside>
   );
