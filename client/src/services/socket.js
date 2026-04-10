@@ -26,7 +26,7 @@ function isEphemeralTunnelUrl(value) {
 }
 
 function resolveSocketUrl() {
-  const explicit        = import.meta.env.VITE_API_URL?.trim();
+  const explicit = import.meta.env.VITE_API_URL?.trim();
   const allowTunnelInDev = import.meta.env.VITE_ALLOW_TUNNEL_URL === 'true';
   if (explicit && isResolvableHttpUrl(explicit)) {
     if (import.meta.env.PROD || allowTunnelInDev || !isEphemeralTunnelUrl(explicit)) {
@@ -41,14 +41,10 @@ const SOCKET_URL = resolveSocketUrl();
 
 const socket = io(SOCKET_URL, {
   autoConnect: false,
-  auth:        {}
+  auth: {}
 });
 
-// ---------------------------------------------------------------------------
-// Auth helpers
-// ---------------------------------------------------------------------------
-
-/** Connect with the stored JWT token */
+// Connect with auth token
 export const connectSocket = () => {
   const token = store.getState().auth.token;
   if (token) {
@@ -57,51 +53,12 @@ export const connectSocket = () => {
   }
 };
 
-/** Disconnect the socket */
+// Disconnect
 export const disconnectSocket = () => {
   socket.disconnect();
 };
 
-// ---------------------------------------------------------------------------
-// Event subscription helpers
-//
-// These return an unsubscribe function so components can clean up in
-// useEffect return callbacks without storing the raw listener reference.
-// ---------------------------------------------------------------------------
-
-/**
- * Subscribe to incoming `resonance` events (new pending connection).
- * @param {Function} callback - called with the full resonance payload
- * @returns {Function} unsubscribe
- */
-export const onResonance = (callback) => {
-  socket.on('resonance', callback);
-  return () => socket.off('resonance', callback);
-};
-
-/**
- * Subscribe to `connection_enriched` events (AI bridge message is ready).
- * @param {Function} callback - called with { connectionId, bridgeMessage, summary }
- * @returns {Function} unsubscribe
- */
-export const onConnectionEnriched = (callback) => {
-  socket.on('connection_enriched', callback);
-  return () => socket.off('connection_enriched', callback);
-};
-
-/**
- * Subscribe to `connection_accepted` events.
- * @param {Function} callback
- * @returns {Function} unsubscribe
- */
-export const onConnectionAccepted = (callback) => {
-  socket.on('connection_accepted', callback);
-  return () => socket.off('connection_accepted', callback);
-};
-
-// ---------------------------------------------------------------------------
-// Core lifecycle logs
-// ---------------------------------------------------------------------------
+// Listen for connection events
 socket.on('connect', () => {
   console.log('Socket connected:', socket.id);
 });
@@ -113,5 +70,21 @@ socket.on('disconnect', (reason) => {
 socket.on('connect_error', (error) => {
   console.error('Socket connection error:', error.message);
 });
+
+// Resonance / Connection state listeners
+export const onResonance = (callback) => {
+  socket.on('resonance', callback);
+  return () => socket.off('resonance', callback);
+};
+
+export const onConnectionEnriched = (callback) => {
+  socket.on('connection_enriched', callback);
+  return () => socket.off('connection_enriched', callback);
+};
+
+export const onConnectionAccepted = (callback) => {
+  socket.on('connection_accepted', callback);
+  return () => socket.off('connection_accepted', callback);
+};
 
 export default socket;

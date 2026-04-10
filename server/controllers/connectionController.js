@@ -3,6 +3,9 @@ import { generateWingmanMessage } from '../services/aiService.js';
 import { notifyUser } from '../services/socketService.js';
 import { runPassiveMatching } from '../services/passiveMatchingService.js';
 
+const MATCH_REFRESH_COOLDOWN_MS = parseInt(process.env.MATCH_REFRESH_COOLDOWN_MS || '300000', 10);
+const lastMatchRefreshByUser = new Map();
+
 const toIdString = (value) => {
   if (!value) return null;
   if (typeof value === 'string') return value;
@@ -54,13 +57,34 @@ const getUserRole = (connection, userId) => {
   };
 };
 
+const refreshUserMatchesIfNeeded = async (userId) => {
+  const userIdString = toIdString(userId);
+  if (!userIdString) return;
+
+  const now = Date.now();
+  const lastRefreshedAt = lastMatchRefreshByUser.get(userIdString) || 0;
+  if (now - lastRefreshedAt < MATCH_REFRESH_COOLDOWN_MS) return;
+
+  lastMatchRefreshByUser.set(userIdString, now);
+
+  try {
+    await runPassiveMatching({
+      userId: userIdString,
+      limit: 20
+    });
+  } catch (error) {
+    // Don't fail the connections endpoint if background refresh has issues.
+    console.error(`Passive matching refresh failed for user ${userIdString}:`, error.message);
+  }
+};
+
 // @desc    Get all connections for current user
 // @route   GET /api/connections
 export const getConnections = async (req, res, next) => {
   try {
     const { status } = req.query;
-    // Matching is now handled by the background scheduler in server.js.
-    // Do NOT run blocking matching here — it causes slow page loads.
+    await refreshUserMatchesIfNeeded(req.user._id);
+
     const query = {
       $or: [
         { seekerId: req.user._id },
@@ -86,29 +110,6 @@ export const getConnections = async (req, res, next) => {
     res.json({
       success: true,
       data: connections.map(normalizeForClient)
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    Manually trigger passive matching for all users (admin/cron use)
-// @route   POST /api/connections/refresh-matches
-export const triggerMatchRefresh = async (req, res, next) => {
-  try {
-    const { limit = 500, dryRun = false } = req.body;
-    console.log(`🔄 Manual match refresh triggered by user ${req.user._id}`);
-
-    // Run in background — don't await so the response returns immediately
-    runPassiveMatching({ limit, dryRun }).then(result => {
-      console.log(`✅ Manual match refresh done: ${result.connectionsCreated} connections created`);
-    }).catch(err => {
-      console.error('Manual match refresh error:', err.message);
-    });
-
-    res.json({
-      success: true,
-      message: 'Passive matching started in background'
     });
   } catch (error) {
     next(error);
@@ -415,6 +416,28 @@ export const markFeedback = async (req, res, next) => {
     res.json({
       success: true,
       data: normalizeForClient(connection)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Trigger passive match refresh
+// @route   POST /api/connections/refresh-matches
+export const triggerMatchRefresh = async (req, res, next) => {
+  try {
+    const { limit = 100, userId, entryId, dryRun = false } = req.body || {};
+    const results = await runPassiveMatching({
+      limit,
+      userId,
+      entryId,
+      dryRun
+    });
+
+    res.json({
+      success: true,
+      message: `Processed ${results.entriesProcessed} entries, created ${results.connectionsCreated} connections`,
+      ...results
     });
   } catch (error) {
     next(error);

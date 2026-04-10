@@ -7,7 +7,6 @@ import JournalPage from './pages/JournalPage';
 import EntriesPage from './pages/EntriesPage';
 import EntryDetailPage from './pages/EntryDetailPage';
 import ConnectionsPage from './pages/ConnectionsPage';
-import ResonanceProfilePage from './pages/ResonanceProfilePage';
 import BridgeViewPage from './pages/BridgeViewPage';
 import InsightsPage from './pages/InsightsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -15,8 +14,9 @@ import ProfilePage from './pages/ProfilePage';
 import CirclesPage from './pages/CirclesPage';
 import CircleViewPage from './pages/CircleViewPage';
 import CreateCirclePage from './pages/CreateCirclePage';
-import PrivacyPage from './pages/PrivacyPage';
 import LandingPage from './pages/LandingPage';
+import PrivacyPage from './pages/PrivacyPage';
+import ResonanceProfilePage from './pages/ResonanceProfilePage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
 
@@ -44,18 +44,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Landing page — public, no auth, shown to everyone */}
-        <Route path="/welcome" element={<LandingPage />} />
-
         {/* Public routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={
           <PublicRoute><LoginPage /></PublicRoute>
         } />
         <Route path="/register" element={
           <PublicRoute><RegisterPage /></PublicRoute>
         } />
-        {/* Privacy policy — public, no auth required */}
-        <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Onboarding (protected but no layout) */}
         <Route path="/onboarding" element={
@@ -63,22 +60,19 @@ export default function App() {
         } />
 
         {/* Protected routes with layout */}
-        <Route path="/" element={
+        <Route element={
           <ProtectedRoute><Layout /></ProtectedRoute>
         }>
-          <Route index element={<Navigate to="/journal" replace />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="entries" element={<EntriesPage />} />
           <Route path="entry/:id" element={<EntryDetailPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
-          <Route path="connections/:connectionId/resonance" element={<ResonanceProfilePage />} />
+          <Route path="connections/:id/resonance" element={<ResonanceProfilePage />} />
           <Route path="circles" element={<CirclesPage />} />
           <Route path="circles/new" element={<CreateCirclePage />} />
           <Route path="insights" element={<InsightsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="privacy" element={<PrivacyPage />} />
-          <Route path="welcome" element={<LandingPage />} />
         </Route>
 
         {/* Bridge view (full screen, no sidebar) */}
