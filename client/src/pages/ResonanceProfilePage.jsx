@@ -875,6 +875,15 @@ export default function ResonanceProfilePage() {
           )}
         </div>
 
+        {/* ── Action Rail — shows FIRST on mobile (thumb-reachable) ──────── */}
+        <div className="order-first md:order-last space-y-4">
+
+          {/* Privacy Guard — always on top */}
+          <PrivacyGuard
+            discoverable={discoverable}
+            onToggle={() => setDiscoverable(d => !d)}
+          />
+
           {/* Action panel */}
           {isPending && !handshakeDone && (
             <div
