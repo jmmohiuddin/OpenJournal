@@ -24,7 +24,7 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
     content: initialContent,
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none font-journal focus:outline-none text-gray-700'
+        class: 'prose prose-base sm:prose-lg max-w-none font-journal focus:outline-none text-gray-700'
       }
     },
     onUpdate: ({ editor }) => setCurrentText(editor.getText()),
@@ -75,8 +75,8 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
   const wordCount = editor?.getText().split(/\s+/).filter(Boolean).length || 0;
 
   return (
-    <div className="container-app">
-      <div className="glass-panel-lg overflow-hidden">
+    <div className="w-full">
+      <div className="glass-panel-lg overflow-hidden flex flex-col">
 
         {/* ── Toolbar ───────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-1.5 px-4 py-2.5 sm:px-6 sm:py-3 border-b border-white/20 bg-white/20">
@@ -110,9 +110,9 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
             ✨
           </button>
 
-          {/* Word count — hidden on very small screens */}
+          {/* Word count */}
           <div className="flex-1" />
-          <span className="text-xs text-gray-400 font-system hidden xs:inline">{wordCount} words</span>
+          <span className="text-xs text-gray-400 font-system hidden sm:inline">{wordCount} words</span>
           <span className="text-xs text-gray-400 font-system sm:hidden">{wordCount}w</span>
         </div>
 

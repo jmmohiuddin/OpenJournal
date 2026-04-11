@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/authSlice';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user } = useSelector(state => state.auth);
   const { pending } = useSelector(state => state.connections);
   const dispatch = useDispatch();
@@ -20,10 +20,20 @@ export default function Sidebar() {
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
+    if (onClose) onClose();
+  };
+
+  const handleNavClick = () => {
+    if (onClose && window.innerWidth < 1024) onClose();
   };
 
   return (
-    <aside className="w-64 glass-nav flex flex-col">
+    <aside className={`
+      w-64 glass-nav flex flex-col
+      fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-in-out
+      lg:relative lg:translate-x-0
+      ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+    `}>
       {/* Logo */}
       <div className="p-6 border-b border-white/20">
         <h1 className="text-xl font-semibold text-gray-800 font-system">Open Journal</h1>
@@ -38,6 +48,7 @@ export default function Sidebar() {
               <NavLink
                 to={item.to}
                 end={item.end}
+                onClick={handleNavClick}
                 className={({ isActive }) => `
                   flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-system
                   ${isActive 

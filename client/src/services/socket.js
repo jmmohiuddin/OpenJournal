@@ -41,7 +41,8 @@ const SOCKET_URL = resolveSocketUrl();
 
 const socket = io(SOCKET_URL, {
   autoConnect: false,
-  auth: {}
+  auth: {},
+  reconnection: !import.meta.env.PROD, // Disable infinite retries in Vercel prod to prevent 404 spam
 });
 
 // Connect with auth token
