@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import api from '../services/api';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sentient Cursor — the breathing "ready to listen" orb in the hero
@@ -463,8 +464,21 @@ export default function LandingPage() {
   const { isAuthenticated, user }       = useSelector(state => state.auth);
   const [scrolled,           setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [waitlistStats, setWaitlistStats] = useState({ currentTotal: 0, capacity: 1000 });
 
   useEffect(() => {
+    const fetchWaitlistStats = async () => {
+      try {
+        const { data } = await api.get('/waitlist/stats');
+        if (data.success) {
+          setWaitlistStats(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to load waitlist stats', err);
+      }
+    };
+    fetchWaitlistStats();
+    
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
@@ -695,6 +709,22 @@ export default function LandingPage() {
               How it works ↓
             </a>
           </div>
+
+          {/* Waitlist Scarcity Trigger */}
+          {!isAuthenticated && (
+            <div className="flex flex-col items-center justify-center mb-12 gap-2 animate-pulse-soft">
+              <span className="text-sm font-medium tracking-wide text-gray-500 uppercase">
+                Founder Circle Spots
+              </span>
+              <div className="flex items-baseline gap-1" style={{ color: '#4B6FAA' }}>
+                <span className="text-2xl font-bold">{waitlistStats.currentTotal}</span>
+                <span className="text-lg font-light text-gray-400">/ {waitlistStats.capacity}</span>
+                <span className="ml-2 text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  {waitlistStats.currentTotal >= waitlistStats.capacity ? 'Waitlist Open' : 'Filling Fast'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* ZK Shield */}
           <div className="flex justify-center">

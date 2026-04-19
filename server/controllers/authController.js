@@ -1,5 +1,60 @@
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { User } from '../models/index.js';
+
+const handleWaitlistAndReferral = async (user, referredByCode) => {
+  // 1. Generate referral code if it doesn't have one
+  if (!user.referralCode) {
+    user.referralCode = crypto.randomBytes(4).toString('hex');
+  }
+
+  // 2. Determine Waitlist Position
+  const totalUsers = await User.countDocuments();
+  // We count before this user is saved, if they are newly created, totalUsers doesn't include them unless they're already in db.
+  // Actually, they ARE in the db because they are created in the controller.
+  // Let's count *excluding* this user to determine limit.
+  const usersBefore = await User.countDocuments({ _id: { $ne: user._id } });
+  
+  if (usersBefore < 1000) {
+    user.status = 'active_founder';
+    const badges = user.badges || [];
+    if (!badges.includes('founder_circle')) badges.push('founder_circle');
+    user.badges = badges;
+    user.waitlistPosition = null;
+  } else {
+    user.status = 'waitlist';
+    user.waitlistPosition = usersBefore - 1000 + 1;
+  }
+
+  // 3. Handle Referral Code
+  if (referredByCode) {
+    const referringUser = await User.findOne({ referralCode: referredByCode });
+    if (referringUser) {
+      user.referredBy = referringUser._id;
+      
+      referringUser.referralCount = (referringUser.referralCount || 0) + 1;
+      
+      // Update badges and tier access
+      const refCount = referringUser.referralCount;
+      const refBadges = referringUser.badges || [];
+      if (refCount >= 3 && referringUser.status === 'waitlist') {
+        referringUser.status = 'active_founder'; // early beta access
+        if (!refBadges.includes('private_vault')) refBadges.push('private_vault');
+      }
+      if (refCount >= 10 && !refBadges.includes('lifetime_premium')) {
+        refBadges.push('lifetime_premium');
+      }
+      if (refCount >= 25 && !refBadges.includes('sage')) {
+        refBadges.push('sage');
+      }
+      referringUser.badges = refBadges;
+      await referringUser.save();
+    }
+  }
+
+  await user.save();
+  return user;
+};
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -11,7 +66,7 @@ const generateToken = (id) => {
 // @route   POST /api/auth/register
 export const register = async (req, res, next) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName, referredByCode } = req.body;
 
     // Check if user exists
     const userExists = await User.findOne({ email });
@@ -23,11 +78,14 @@ export const register = async (req, res, next) => {
     }
 
     // Create user
-    const user = await User.create({
+    let user = await User.create({
       email,
       password,
       displayName
     });
+    
+    // Process waitlist and referrals
+    user = await handleWaitlistAndReferral(user, referredByCode);
 
     res.status(201).json({
       success: true,
@@ -35,6 +93,10 @@ export const register = async (req, res, next) => {
         _id: user._id,
         email: user.email,
         displayName: user.displayName,
+        status: user.status,
+        waitlistPosition: user.waitlistPosition,
+        referralCode: user.referralCode,
+        badges: user.badges,
         token: generateToken(user._id)
       }
     });
@@ -74,6 +136,10 @@ export const login = async (req, res, next) => {
         email: user.email,
         displayName: user.displayName,
         onboardingComplete: user.onboardingComplete,
+        status: user.status,
+        waitlistPosition: user.waitlistPosition,
+        referralCode: user.referralCode,
+        badges: user.badges,
         token: generateToken(user._id)
       }
     });
@@ -121,7 +187,7 @@ export const updateProfile = async (req, res, next) => {
 // @route   POST /api/auth/google
 export const googleAuth = async (req, res, next) => {
   try {
-    const { uid, email, displayName, photoURL } = req.body;
+    const { uid, email, displayName, photoURL, referredByCode } = req.body;
 
     if (!uid || !email) {
       return res.status(400).json({
@@ -152,6 +218,8 @@ export const googleAuth = async (req, res, next) => {
           authProvider: 'google',
           photoURL
         });
+        
+        user = await handleWaitlistAndReferral(user, referredByCode);
       }
     }
 
@@ -163,6 +231,10 @@ export const googleAuth = async (req, res, next) => {
         displayName: user.displayName,
         photoURL: user.photoURL,
         onboardingComplete: user.onboardingComplete,
+        status: user.status,
+        waitlistPosition: user.waitlistPosition,
+        referralCode: user.referralCode,
+        badges: user.badges,
         token: generateToken(user._id)
       }
     });

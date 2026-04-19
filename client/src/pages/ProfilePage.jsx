@@ -58,6 +58,57 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Badges & Identity */}
+      <div className="bg-white rounded-xl p-6 shadow-sm border border-lavender-web mb-6">
+        <h3 className="font-medium text-gray-800 mb-4">Identity & Badges</h3>
+        <div className="flex flex-wrap gap-4">
+          {user?.badges?.map(badge => {
+            const formatBadgeName = (str) => str.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            return (
+              <div
+                key={badge}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: 'rgba(171,196,255,0.2)', color: '#4B6FAA', border: '1px solid rgba(171,196,255,0.4)' }}
+              >
+                <span>✦</span>
+                <span>{formatBadgeName(badge)}</span>
+              </div>
+            );
+          })}
+          
+          {/* Knowledge Broker Badge */}
+          {user?.resolvedSolutions >= 10 && (
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={{ background: '#FFF3E0', color: '#E65100', border: '1px solid #FFE0B2' }}
+              title="Awarded for resolving 10 Seeker problems"
+            >
+              <span>🦉</span>
+              <span>Knowledge Broker</span>
+            </div>
+          )}
+
+          {/* Resonance Badge */}
+          <div
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: user?.matchAccuracy >= 80 ? '#D6EADF' : '#F3F4F6',
+              color: user?.matchAccuracy >= 80 ? '#2D6A4F' : '#9CA3AF',
+              border: `1px solid ${user?.matchAccuracy >= 80 ? '#9DC4B0' : '#E5E7EB'}`,
+              boxShadow: user?.matchAccuracy >= 80 ? '0 0 16px rgba(214,234,223,0.8)' : 'none'
+            }}
+            title={user?.matchAccuracy >= 80 ? "Resonance > 80%" : "Keep connecting to unlock Resonance Glow"}
+          >
+            <span>🎙️</span>
+            <span>Resonance Badge</span>
+          </div>
+
+          {(!user?.badges || user.badges.length === 0) && (user?.resolvedSolutions < 10) && (
+            <p className="text-sm text-gray-400">Keep connecting, exploring, and sharing your insights to unlock Identity Badges.</p>
+          )}
+        </div>
+      </div>
+
       {/* Discovery Status */}
       <div className="bg-white rounded-xl p-6 shadow-sm border border-lavender-web mb-6">
         <div className="flex items-center justify-between">

@@ -17,6 +17,7 @@ import CreateCirclePage from './pages/CreateCirclePage';
 import LandingPage from './pages/LandingPage';
 import PrivacyPage from './pages/PrivacyPage';
 import ResonanceProfilePage from './pages/ResonanceProfilePage';
+import WaitlistPage from './pages/WaitlistPage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
 
@@ -28,8 +29,13 @@ function ProtectedRoute({ children }) {
   }
   
   // Redirect to onboarding if not completed
-  if (user && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
+  if (user && user.status !== 'waitlist' && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Redirect to waitlist if on waitlist
+  if (user && user.status === 'waitlist' && window.location.pathname !== '/waitlist') {
+    return <Navigate to="/waitlist" replace />;
   }
   
   return children;
@@ -57,6 +63,11 @@ export default function App() {
         {/* Onboarding (protected but no layout) */}
         <Route path="/onboarding" element={
           <ProtectedRoute><OnboardingInterview /></ProtectedRoute>
+        } />
+
+        {/* Waitlist (protected but no layout) */}
+        <Route path="/waitlist" element={
+          <ProtectedRoute><WaitlistPage /></ProtectedRoute>
         } />
 
         {/* Protected routes with layout */}

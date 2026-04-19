@@ -312,6 +312,20 @@ function ActiveCard({ connection, userId, delay = 0 }) {
   const otherName = otherUser?.displayName || 'Someone';
   const seed      = seedFromId(connection._id || '');
   const matchScore = connection.similarityScore ?? 0.8;
+  const [copied, setCopied] = useState(false);
+  const authUser = useSelector(state => state.auth.user);
+
+  const handleShare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const redactedHook = connection.bridgeMessage?.substring(0, Math.min(50, connection.bridgeMessage?.length)) + '...';
+    const refCode = authUser?.referralCode || '';
+    const shareText = `I just found a profound insight on Open Journal: "${redactedHook}". Join my inner circle to unlock it: ${window.location.origin}/register?ref=${refCode}`;
+    
+    navigator.clipboard.writeText(shareText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Reveal delay={delay}>
@@ -353,6 +367,17 @@ function ActiveCard({ connection, userId, delay = 0 }) {
             >
               {connection.status === 'resolved' ? '✓ Resolved' : 'Active'}
             </span>
+            <button
+              onClick={handleShare}
+              className="px-3 py-1 rounded-xl text-[10px] font-bold transition-all duration-200"
+              style={{
+                background: copied ? '#D6EADF' : 'rgba(215,227,252,0.4)',
+                color: copied ? '#2d6a4f' : '#4B6FAA',
+                border: `1px solid ${copied ? 'rgba(157,196,176,0.5)' : 'rgba(171,196,255,0.4)'}`
+              }}
+            >
+              {copied ? '✓ Copied' : 'Resonance Share'}
+            </button>
             <Link
               to={`/bridge/${connection._id}`}
               onClick={(e) => e.stopPropagation()}

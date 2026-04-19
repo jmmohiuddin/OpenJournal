@@ -6,6 +6,7 @@ import connectionRoutes from './routes/connections.js';
 import aiRoutes from './routes/ai.js';
 import circleRoutes from './routes/circles.js';
 import matchingRoutes from './routes/matching.js';
+import waitlistRoutes from './routes/waitlist.js';
 import connectDB from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initializeAI } from './services/aiService.js';
@@ -95,6 +96,7 @@ app.use('/api/connections', connectionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/circles', circleRoutes);
 app.use('/api/matching', matchingRoutes);
+app.use('/api/waitlist', waitlistRoutes);
 
 // Error handling
 app.use(notFound);
