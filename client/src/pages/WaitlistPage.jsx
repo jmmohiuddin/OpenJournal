@@ -1,11 +1,15 @@
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { updateUser } from '../../store/authSlice';
+import api from '../../services/api';
 
 export default function WaitlistPage() {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [copied, setCopied] = useState(false);
+  const [skipping, setSkipping] = useState(false);
 
   useEffect(() => {
     // If not waitlisted, redirect to home
@@ -22,6 +26,21 @@ export default function WaitlistPage() {
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSkip = async () => {
+    try {
+      setSkipping(true);
+      const { data } = await api.post('/waitlist/skip');
+      if (data.success) {
+        dispatch(updateUser(data.data));
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error skipping waitlist', error);
+    } finally {
+      setSkipping(false);
+    }
   };
 
   return (
@@ -41,7 +60,7 @@ export default function WaitlistPage() {
         <div className="mt-12 bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           <h2 className="text-2xl font-medium mb-2">Moved to action? Skip the line.</h2>
           <p className="text-gray-500 mb-6 font-light">
-            Invite 3 friends to secure Early Beta Access ("Private Vault") and skip the waitlist.
+            If you want to be a Founder Member, invite 3 people.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -53,13 +72,20 @@ export default function WaitlistPage() {
             />
             <button 
               onClick={copyToClipboard}
-              className={`w-full sm:w-auto px-8 py-3 rounded-xl font-medium transition duration-300 ${
+              className={`w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition duration-300 ${
                 copied 
                   ? 'bg-green-500 text-white shadow-green-500/30' 
                   : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30'
-              } shadow-lg`}
+              } shadow-lg shrink-0`}
             >
               {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+            <button
+              onClick={handleSkip}
+              disabled={skipping}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl font-medium transition duration-300 bg-gray-100 text-gray-600 hover:bg-gray-200 shrink-0"
+            >
+              {skipping ? 'Skipping...' : 'Skip'}
             </button>
           </div>
           <div className="mt-6 flex justify-between items-center text-sm font-medium text-gray-400 border-t border-gray-100 pt-6">
