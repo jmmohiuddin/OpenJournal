@@ -70,8 +70,12 @@ app.use(cors({
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import os from 'os';
+
 // Serve static uploaded files locally
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+const uploadDir = isVercel ? path.join(os.tmpdir(), 'openjournal-uploads') : path.join(__dirname, 'public/uploads');
+app.use('/uploads', express.static(uploadDir));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

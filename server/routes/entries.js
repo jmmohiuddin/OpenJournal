@@ -29,9 +29,19 @@ const upload = multer({
   }
 });
 
+import os from 'os';
+
 // Multer config — disk storage (used for direct attachment / V1)
-const storageDir = path.join(process.cwd(), 'public/uploads');
-if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+const storageDir = isVercel 
+  ? path.join(os.tmpdir(), 'openjournal-uploads')
+  : path.join(process.cwd(), 'public/uploads');
+
+try {
+  if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+} catch (err) {
+  console.error('Failed to create upload directory:', err.message);
+}
 
 const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, storageDir),
