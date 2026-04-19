@@ -1,5 +1,6 @@
-import { Entry } from '../models/index.js';
+import { Entry, Connection } from '../models/index.js';
 import { processEntry } from '../services/entryProcessor.js';
+import { extractTextFromImage } from '../services/aiService.js';
 
 // @desc    Create new journal entry
 // @route   POST /api/entries
@@ -246,6 +247,110 @@ export const getInsights = async (req, res, next) => {
         topThemes
       }
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create entry from uploaded image (OCR)
+// @route   POST /api/entries/image
+export const createEntryFromImage = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided'
+      });
+    }
+
+    const { isDiscoverable } = req.body;
+
+    // Extract text from image using AI
+    const extractedText = await extractTextFromImage(
+      req.file.buffer,
+      req.file.mimetype
+    );
+
+    if (!extractedText || extractedText.trim().length === 0) {
+      return res.status(422).json({
+        success: false,
+        message: 'Could not extract any text from the image'
+      });
+    }
+
+    // Create a small base64 thumbnail (store only for reference)
+    const thumbnail = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64').slice(0, 5000)}`;
+
+    const entry = await Entry.create({
+      userId: req.user._id,
+      content: extractedText,
+      contentHtml: `<p>${extractedText.replace(/\n/g, '</p><p>')}</p>`,
+      isDiscoverable: isDiscoverable === 'true' || isDiscoverable === true,
+      source: 'image',
+      sourceImageUrl: thumbnail
+    });
+
+    // Trigger async AI processing (same as regular entries)
+    processEntry(entry._id).catch(err => {
+      console.error('AI processing error (image entry):', err.message);
+    });
+
+    res.status(201).json({
+      success: true,
+      data: entry,
+      extractedText
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Export all user data as JSON
+// @route   GET /api/entries/export
+export const exportUserData = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    // Fetch all user entries (without embeddings)
+    const entries = await Entry.find({ userId })
+      .select('-embedding')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Fetch all user connections
+    const connections = await Connection.find({
+      $or: [{ seekerId: userId }, { sageId: userId }]
+    })
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // User profile (already on req.user from auth middleware)
+    const profile = {
+      displayName: req.user.displayName,
+      email: req.user.email,
+      values: req.user.values,
+      interests: req.user.interests,
+      discoveryEnabled: req.user.discoveryEnabled,
+      badges: req.user.badges,
+      createdAt: req.user.createdAt,
+      updatedAt: req.user.updatedAt
+    };
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      profile,
+      entries,
+      connections,
+      summary: {
+        totalEntries: entries.length,
+        totalConnections: connections.length
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="openjournal-export-${Date.now()}.json"`);
+    res.json(exportData);
   } catch (error) {
     next(error);
   }

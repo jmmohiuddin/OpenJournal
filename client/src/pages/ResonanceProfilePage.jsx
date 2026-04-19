@@ -479,7 +479,7 @@ const ETHICS_TAGS = [
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ResonanceProfilePage() {
-  const { connectionId }              = useParams();
+  const { id: connectionId }              = useParams();
   const dispatch                      = useDispatch();
   const navigate                      = useNavigate();
   const { user }                      = useSelector(s => s.auth);

@@ -25,6 +25,20 @@ export const createEntry = createAsyncThunk(
   }
 );
 
+export const createEntryFromImage = createAsyncThunk(
+  'entries/createEntryFromImage',
+  async (formData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/entries/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to process image');
+    }
+  }
+);
+
 export const updateEntry = createAsyncThunk(
   'entries/updateEntry',
   async ({ id, ...entryData }, { rejectWithValue }) => {
@@ -97,6 +111,19 @@ const entriesSlice = createSlice({
         state.entries.unshift(action.payload.data);
       })
       .addCase(createEntry.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Create entry from image
+      .addCase(createEntryFromImage.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createEntryFromImage.fulfilled, (state, action) => {
+        state.loading = false;
+        state.entries.unshift(action.payload.data);
+      })
+      .addCase(createEntryFromImage.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

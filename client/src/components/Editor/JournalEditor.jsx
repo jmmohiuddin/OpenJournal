@@ -1,25 +1,35 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
 import VoiceInput from './VoiceInput';
 import { useGhostText } from './GhostCanvas';
+import api from '../../services/api';
 
 // Detect if the user is on a touch device (to adapt ghost text hint)
 const isTouch = () => ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
-export default function JournalEditor({ onSave, initialContent = '', loading = false }) {
+export default function JournalEditor({ onSave, onImageUpload, initialContent = '', loading = false }) {
   const [isDiscoverable, setIsDiscoverable] = useState(false);
   const [ghostEnabled,   setGhostEnabled]   = useState(true);
   const [currentText,    setCurrentText]    = useState('');
   const [touch,          setTouch]          = useState(false);
+  const [imageProcessing, setImageProcessing] = useState(false);
+  const [imageError,     setImageError]     = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => { setTouch(isTouch()); }, []);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-      Placeholder.configure({ placeholder: "What's on your mind today? Let your thoughts flow freely..." })
+      Placeholder.configure({ placeholder: "What's on your mind today? Let your thoughts flow freely..." }),
+      Image.configure({
+        HTMLAttributes: {
+          class: 'rounded-xl max-h-[500px] w-auto max-w-full object-contain my-4 shadow-sm border border-gray-100',
+        },
+      })
     ],
     content: initialContent,
     editorProps: {
@@ -57,6 +67,71 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
     if (!editor || isInterim) return;
     editor.commands.insertContent(' ' + transcript);
   }, [editor]);
+
+  // V1 Flow: Attach image directly to the journal entry visual editor
+  const handleImageUpload_V1 = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editor) return;
+
+    setImageError('');
+    setImageProcessing(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Upload file to local static server
+      const { data } = await api.post('/entries/upload-image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (data.success && data.url) {
+        editor.chain().focus().setImage({ src: data.url }).run();
+      }
+    } catch (err) {
+      const msg = (typeof err === 'string' ? err : err?.response?.data?.message || err?.message || '') || '';
+      setImageError(msg.toLowerCase().includes('size') ? '⚠️ Image is too large. Please use an image under 10MB.' : '⚠️ Image upload failed.');
+      setTimeout(() => setImageError(''), 6000);
+    } finally {
+      setImageProcessing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [editor]);
+
+  const handleImageUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !onImageUpload) return;
+
+    setImageError('');
+    setImageProcessing(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('isDiscoverable', isDiscoverable);
+      await onImageUpload(formData);
+    } catch (err) {
+      // err can be an Error object or a plain string (from Redux rejectWithValue)
+      const msg = (typeof err === 'string' ? err : err?.message || '') || '';
+      const lower = msg.toLowerCase();
+      let friendlyMsg;
+      if (lower.includes('no ai provider') || lower.includes('configure') || lower.includes('api key') || lower.includes('hf_token') || lower.includes('openai_api_key')) {
+        friendlyMsg = '⚠️ Image OCR needs an AI key. Add OPENAI_API_KEY or HF_TOKEN to your server .env, then restart the server.';
+      } else if (lower.includes('extract') || lower.includes('no text') || lower.includes('readable')) {
+        friendlyMsg = '⚠️ Could not extract text from the image. Try a clearer, higher-contrast photo.';
+      } else if (lower.includes('size') || lower.includes('5mb') || lower.includes('limit')) {
+        friendlyMsg = '⚠️ Image is too large. Please use an image under 5MB.';
+      } else if (lower.includes('type') || lower.includes('format')) {
+        friendlyMsg = '⚠️ Invalid file type. Please upload a JPG, PNG, or WEBP image.';
+      } else {
+        friendlyMsg = `⚠️ Image upload failed${msg ? ': ' + msg : '. Please try again.'}`;
+      }
+      setImageError(friendlyMsg);
+      // Auto-clear error after 8s
+      setTimeout(() => setImageError(''), 8000);
+    } finally {
+      setImageProcessing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [onImageUpload, isDiscoverable]);
 
   const handleAcceptGhost = () => {
     if (!editor || !ghostText) return;
@@ -98,6 +173,51 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
           {/* Voice input */}
           <VoiceInput onTranscript={handleVoiceTranscript} disabled={loading} />
 
+          {/* Image upload V1 (Direct Attachment) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload_V1}
+            className="hidden"
+            id="image-upload-input"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading || imageProcessing}
+            title={imageProcessing ? 'Uploading image…' : 'Attach an image'}
+            className={[
+              'touch-target rounded-xl text-sm transition-all duration-200 font-system px-2',
+              imageProcessing
+                ? 'bg-blue-eyes/20 text-blue-600 animate-pulse'
+                : 'bg-white/20 text-gray-500 hover:bg-white/30',
+            ].join(' ')}
+          >
+            {imageProcessing ? '⏳' : '🖼️'}
+          </button>
+
+          {/* 
+            HIDDEN DEV FEATURE: Image Upload V2 (OCR Text Extraction) 
+            Do not delete this code per requested requirements.
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+              id="image-upload-input-ocr"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || imageProcessing}
+              title="Upload image (OCR) [V2]"
+              className="touch-target rounded-xl text-sm transition-all duration-200 font-system px-2"
+            >
+              📷
+            </button>
+          */}
+
           {/* Ghost text toggle */}
           <button
             onClick={() => setGhostEnabled(!ghostEnabled)}
@@ -116,7 +236,14 @@ export default function JournalEditor({ onSave, initialContent = '', loading = f
           <span className="text-xs text-gray-400 font-system sm:hidden">{wordCount}w</span>
         </div>
 
-        {/* ── Editor content ────────────────────────────────────────────── */}
+        {/* ── Image error banner ─────────────────────────────────────────── */}
+        {imageError && (
+          <div className="mx-4 sm:mx-6 mt-2 px-4 py-2.5 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <span className="text-sm text-red-700 font-system flex-1">{imageError}</span>
+            <button onClick={() => setImageError('')} className="text-red-400 hover:text-red-600 text-xs flex-shrink-0">✕</button>
+          </div>
+        )}
+
         <div className="p-4 sm:p-8 relative">
           <EditorContent editor={editor} />
 

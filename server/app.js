@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import entryRoutes from './routes/entries.js';
 import connectionRoutes from './routes/connections.js';
@@ -64,6 +66,12 @@ app.use(cors({
   },
   credentials: true
 }));
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static uploaded files locally
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

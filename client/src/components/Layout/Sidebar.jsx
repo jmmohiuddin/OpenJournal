@@ -9,7 +9,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
 
   const navItems = [
-    { to: '/', icon: '📝', label: 'Write', end: true },
+    { to: '/journal', icon: '📝', label: 'Write', end: true },
     { to: '/entries', icon: '📚', label: 'Entries' },
     { to: '/connections', icon: '✨', label: 'Connections', badge: pending.length },
     { to: '/circles', icon: '🔮', label: 'Circles' },

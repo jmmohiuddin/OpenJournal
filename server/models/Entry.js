@@ -56,6 +56,17 @@ const entrySchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Entry source type
+  source: {
+    type: String,
+    enum: ['text', 'voice', 'image'],
+    default: 'text'
+  },
+  // Base64 thumbnail for image-sourced entries
+  sourceImageUrl: {
+    type: String,
+    default: null
+  },
   // AI processing status
   aiProcessed: {
     type: Boolean,

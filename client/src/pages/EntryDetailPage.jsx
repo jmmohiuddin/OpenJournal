@@ -124,9 +124,10 @@ export default function EntryDetailPage() {
 
         {/* Content */}
         <div className="p-8">
-          <div className="font-journal text-lg text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {entry.content}
-          </div>
+          <div 
+            className="prose prose-base text-gray-700 max-w-none font-journal leading-relaxed prose-img:rounded-xl prose-img:shadow-sm"
+            dangerouslySetInnerHTML={{ __html: entry.contentHtml || entry.content }}
+          />
         </div>
 
         {/* Themes */}

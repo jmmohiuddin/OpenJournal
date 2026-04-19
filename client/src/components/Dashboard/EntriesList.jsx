@@ -24,7 +24,7 @@ export default function EntriesList({ entries }) {
       <div className="text-center py-12">
         <p className="text-gray-500">No entries yet. Start writing!</p>
         <Link 
-          to="/"
+          to="/journal"
           className="mt-4 inline-block px-6 py-2 bg-blue-eyes text-white rounded-lg hover:bg-opacity-90"
         >
           Write your first entry
@@ -70,9 +70,10 @@ function EntryCard({ entry }) {
         </div>
 
         {/* Content Preview */}
-        <p className="font-journal text-gray-700 line-clamp-3 leading-relaxed">
-          {entry.content}
-        </p>
+        <div 
+          className="font-journal text-gray-700 line-clamp-3 leading-relaxed prose prose-sm prose-img:rounded-md prose-img:max-h-32 prose-img:object-cover prose-p:my-0"
+          dangerouslySetInnerHTML={{ __html: entry.contentHtml || entry.content }}
+        />
 
         {/* Themes */}
         {entry.themes?.length > 0 && (

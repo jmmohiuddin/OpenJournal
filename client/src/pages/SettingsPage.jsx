@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [newValue, setNewValue] = useState('');
   const [newInterest, setNewInterest] = useState('');
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
@@ -289,6 +290,49 @@ export default function SettingsPage() {
             >
               Add
             </button>
+          </div>
+        </section>
+
+        {/* Data & Privacy Section */}
+        <section className="bg-white rounded-xl p-6 shadow-sm border border-lavender-web">
+          <h2 className="text-lg font-medium text-gray-800 mb-4">Data & Privacy</h2>
+          
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-medium text-gray-800">Export My Data</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Download all your journal entries, connections, and profile data as a JSON file.
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  setExporting(true);
+                  setMessage(null);
+                  try {
+                    const response = await api.get('/entries/export', { responseType: 'blob' });
+                    const blob = new Blob([response.data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `openjournal-export-${Date.now()}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    setMessage({ type: 'success', text: 'Data exported successfully!' });
+                  } catch (error) {
+                    setMessage({ type: 'error', text: 'Failed to export data. Please try again.' });
+                  } finally {
+                    setExporting(false);
+                  }
+                }}
+                disabled={exporting}
+                className="px-4 py-2 bg-lavender-web text-gray-700 rounded-lg hover:bg-opacity-80 disabled:opacity-50 transition text-sm font-medium flex-shrink-0"
+              >
+                {exporting ? 'Exporting…' : '📥 Export'}
+              </button>
+            </div>
           </div>
         </section>
 

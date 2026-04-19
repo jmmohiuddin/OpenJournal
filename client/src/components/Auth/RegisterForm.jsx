@@ -41,7 +41,12 @@ export default function RegisterForm() {
         referredByCode
       });
       dispatch(loginSuccess(data.data));
-      navigate('/');
+      // Route waitlisted users to the waitlist page
+      if (data.data?.status === 'waitlist') {
+        navigate('/waitlist');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       dispatch(loginFailure(err.response?.data?.message || 'Registration failed'));
     }
