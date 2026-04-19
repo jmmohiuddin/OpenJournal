@@ -1,8 +1,8 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { updateUser } from '../../store/authSlice';
-import api from '../../services/api';
+import { updateUser } from '../store/authSlice';
+import api from '../services/api';
 
 export default function WaitlistPage() {
   const { user } = useSelector((state) => state.auth);
