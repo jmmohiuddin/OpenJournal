@@ -457,6 +457,114 @@ function PageOrbs() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Feedback Modal
+// ─────────────────────────────────────────────────────────────────────────────
+function FeedbackModal({ onClose }) {
+  const [formData, setFormData] = useState({ type: 'idea', message: '', email: '' });
+  const [status, setStatus] = useState('idle');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.message.trim()) return;
+    try {
+      setStatus('loading');
+      await api.post('/feedback', formData);
+      setStatus('success');
+      setTimeout(onClose, 2000);
+    } catch (err) {
+      console.error(err);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4" style={{ background: 'rgba(237,242,251,0.5)', backdropFilter: 'blur(12px)' }}>
+      <div 
+        className="w-full max-w-md p-6 rounded-3xl animate-slide-up"
+        style={{
+          background: 'linear-gradient(145deg,rgba(255,255,255,0.95),rgba(237,242,251,0.95))',
+          border: '1px solid rgba(215,227,252,0.8)',
+          boxShadow: '0 24px 64px rgba(31,38,135,0.15)'
+        }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-800">Share Feedback</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 text-gray-500 hover:text-gray-800 hover:bg-black/10 transition-colors">
+            ✕
+          </button>
+        </div>
+
+        {status === 'success' ? (
+          <div className="py-8 text-center animate-fade-in">
+            <div className="text-4xl mb-4">💚</div>
+            <h4 className="text-lg font-semibold text-gray-800 mb-2">Thank you!</h4>
+            <p className="text-sm text-gray-500">Your feedback helps us grow Open Journal.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Feedback Type</label>
+              <div className="flex gap-2">
+                {['idea', 'bug', 'question', 'other'].map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, type: t }))}
+                    className={`flex-1 py-2 rounded-xl text-xs font-medium transition-colors ${formData.type === t ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-white/50 text-gray-600 border-transparent hover:bg-white'} border`}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Message <span className="text-red-400">*</span></label>
+              <textarea 
+                value={formData.message}
+                onChange={e => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                required
+                rows={4}
+                placeholder="What's on your mind?"
+                className="w-full px-4 py-3 rounded-xl text-sm bg-white/70 border border-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white transition-all resize-none"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 mb-2 uppercase tracking-widest">Email <span className="text-gray-400 font-normal lowercase">(Optional)</span></label>
+              <input 
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="So we can reply to you"
+                className="w-full px-4 py-3 rounded-xl text-sm bg-white/70 border border-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:bg-white transition-all"
+              />
+            </div>
+
+            {status === 'error' && (
+              <p className="text-xs text-red-500 text-center font-medium">Something went wrong. Please try again.</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'loading' || !formData.message.trim()}
+              className="w-full py-3.5 rounded-xl font-medium text-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              style={{
+                background: 'linear-gradient(135deg,#ABC4FF,#9DC4B0)',
+                color: '#fff',
+                boxShadow: '0 4px 16px rgba(171,196,255,0.4)',
+              }}
+            >
+              {status === 'loading' ? 'Sending...' : 'Send Feedback'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Landing Page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
@@ -465,6 +573,7 @@ export default function LandingPage() {
   const [scrolled,           setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [waitlistStats, setWaitlistStats] = useState({ currentTotal: 0, capacity: 1000 });
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   useEffect(() => {
     const fetchWaitlistStats = async () => {
@@ -1069,6 +1178,24 @@ export default function LandingPage() {
           </Link>
         </div>
       </footer>
+
+      {/* ── Feedback Floating Button ──────────────────────────────────── */}
+      <button
+        onClick={() => setIsFeedbackOpen(true)}
+        className="fixed bottom-6 right-6 z-40 flex items-center justify-center gap-2 px-5 py-3 rounded-full text-sm font-medium transition-all duration-300 hover:scale-[1.03] hover:shadow-lg"
+        style={{
+          background: 'rgba(255,255,255,0.85)',
+          border: '1px solid rgba(215,227,252,0.9)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 8px 32px rgba(31,38,135,0.1)',
+          color: '#4B6FAA'
+        }}
+      >
+        <span className="text-lg leading-none mt-0.5">💬</span>
+        Feedback
+      </button>
+
+      {isFeedbackOpen && <FeedbackModal onClose={() => setIsFeedbackOpen(false)} />}
     </div>
   );
 }

@@ -630,6 +630,65 @@ export async function transcribeAudio(buffer, mimeType) {
   }
 }
 
+export async function extractTextFromImage(buffer, mimeType) {
+  await resolveProvider();
+
+  if (activeProvider === PROVIDERS.OPENAI) {
+    const client = getOpenAIClient();
+    if (!client) {
+      throw new Error('No OpenAI client configured for image text extraction');
+    }
+
+    const base64 = buffer.toString('base64');
+    const response = await client.chat.completions.create({
+      model: process.env.OPENAI_VISION_MODEL || OPENAI_CHAT_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Extract all readable text from the provided image. Return only plain text with sensible line breaks. Do not add explanations.'
+        },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Please transcribe the image text exactly as written.' },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType || 'image/jpeg'};base64,${base64}`
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0
+    });
+
+    const text = response?.choices?.[0]?.message?.content?.trim() || '';
+    return text;
+  }
+
+  if (activeProvider === PROVIDERS.HUGGINGFACE) {
+    const client = getHFClient();
+    if (!client) {
+      throw new Error('No Hugging Face token configured (set HF_TOKEN)');
+    }
+
+    const blob = new Blob([buffer], { type: mimeType || 'image/jpeg' });
+    const result = await client.imageToText({
+      model: process.env.HF_OCR_MODEL || 'microsoft/trocr-base-printed',
+      data: blob
+    });
+
+    if (typeof result === 'string') return result.trim();
+    return String(result?.generated_text || '').trim();
+  }
+
+  throw new Error(
+    'Image OCR is unavailable with Ollama. Configure OPENAI_API_KEY or HF_TOKEN to enable image text extraction.'
+  );
+}
+
 export async function chat(messages, options = {}) {
   const { temperature = 0.7, maxTokens = 500 } = options;
   try {
@@ -873,73 +932,4 @@ export async function generateCircleWelcome(name, topic, themes) {
     console.error('Circle welcome error:', error.message);
     return `Welcome to "${name}"! This is a supportive space to explore ${topic} together. Feel free to share your thoughts and experiences.`;
   }
-}
-
-export async function extractTextFromImage(buffer, mimeType = 'image/png') {
-  await resolveProvider();
-
-  const base64 = buffer.toString('base64');
-  const dataUri = `data:${mimeType};base64,${base64}`;
-
-  // Try OpenAI vision first (most reliable for OCR)
-  const oaiClient = getOpenAIClient();
-  if (oaiClient) {
-    try {
-      const response = await oaiClient.chat.completions.create({
-        model: OPENAI_CHAT_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an OCR assistant. Extract ALL readable text from the image. Return ONLY the extracted text, preserving paragraph structure. If no text is found, describe the image content as a journal-style reflection in 2-3 sentences.'
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Extract all text from this image:' },
-              { type: 'image_url', image_url: { url: dataUri, detail: 'high' } }
-            ]
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.1
-      });
-      const content = response?.choices?.[0]?.message?.content;
-      if (content && content.trim().length > 0) return content.trim();
-    } catch (error) {
-      console.error('OpenAI vision OCR error:', error.message);
-    }
-  }
-
-  // Try Hugging Face vision model
-  const hfClient = getHFClient();
-  if (hfClient) {
-    try {
-      const hfVisionModel = process.env.HF_VISION_MODEL || 'Qwen/Qwen2-VL-7B-Instruct';
-      const response = await hfClient.chatCompletion({
-        model: hfVisionModel,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Extract ALL readable text from this image. Return ONLY the extracted text. If no text, describe the image as a journal reflection.'
-              },
-              { type: 'image_url', image_url: { url: dataUri } }
-            ]
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.1
-      });
-      const content = response?.choices?.[0]?.message?.content;
-      if (content && content.trim().length > 0) return content.trim();
-    } catch (error) {
-      console.error('HF vision OCR error:', error.message);
-      throw new Error('HF Vision API failed: ' + error.message);
-    }
-  }
-
-  throw new Error('No AI provider available for image text extraction. Configure OPENAI_API_KEY or HF_TOKEN.');
 }

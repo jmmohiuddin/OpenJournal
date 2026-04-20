@@ -14,10 +14,6 @@ import ProfilePage from './pages/ProfilePage';
 import CirclesPage from './pages/CirclesPage';
 import CircleViewPage from './pages/CircleViewPage';
 import CreateCirclePage from './pages/CreateCirclePage';
-import LandingPage from './pages/LandingPage';
-import PrivacyPage from './pages/PrivacyPage';
-import ResonanceProfilePage from './pages/ResonanceProfilePage';
-import WaitlistPage from './pages/WaitlistPage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
 
@@ -29,13 +25,8 @@ function ProtectedRoute({ children }) {
   }
   
   // Redirect to onboarding if not completed
-  if (user && user.status !== 'waitlist' && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
+  if (user && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
-  }
-
-  // Redirect to waitlist if on waitlist
-  if (user && user.status === 'waitlist' && window.location.pathname !== '/waitlist') {
-    return <Navigate to="/waitlist" replace />;
   }
   
   return children;
@@ -51,8 +42,6 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={
           <PublicRoute><LoginPage /></PublicRoute>
         } />
@@ -65,20 +54,15 @@ export default function App() {
           <ProtectedRoute><OnboardingInterview /></ProtectedRoute>
         } />
 
-        {/* Waitlist (protected but no layout) */}
-        <Route path="/waitlist" element={
-          <ProtectedRoute><WaitlistPage /></ProtectedRoute>
-        } />
-
         {/* Protected routes with layout */}
-        <Route element={
+        <Route path="/" element={
           <ProtectedRoute><Layout /></ProtectedRoute>
         }>
+          <Route index element={<Navigate to="/journal" replace />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="entries" element={<EntriesPage />} />
           <Route path="entry/:id" element={<EntryDetailPage />} />
           <Route path="connections" element={<ConnectionsPage />} />
-          <Route path="connections/:id/resonance" element={<ResonanceProfilePage />} />
           <Route path="circles" element={<CirclesPage />} />
           <Route path="circles/new" element={<CreateCirclePage />} />
           <Route path="insights" element={<InsightsPage />} />

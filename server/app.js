@@ -1,14 +1,11 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import entryRoutes from './routes/entries.js';
 import connectionRoutes from './routes/connections.js';
 import aiRoutes from './routes/ai.js';
 import circleRoutes from './routes/circles.js';
 import matchingRoutes from './routes/matching.js';
-import waitlistRoutes from './routes/waitlist.js';
 import connectDB from './config/db.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initializeAI } from './services/aiService.js';
@@ -67,16 +64,6 @@ app.use(cors({
   credentials: true
 }));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-import os from 'os';
-
-// Serve static uploaded files locally
-const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-const uploadDir = isVercel ? path.join(os.tmpdir(), 'openjournal-uploads') : path.join(__dirname, 'public/uploads');
-app.use('/uploads', express.static(uploadDir));
-
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -108,7 +95,6 @@ app.use('/api/connections', connectionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/circles', circleRoutes);
 app.use('/api/matching', matchingRoutes);
-app.use('/api/waitlist', waitlistRoutes);
 
 // Error handling
 app.use(notFound);

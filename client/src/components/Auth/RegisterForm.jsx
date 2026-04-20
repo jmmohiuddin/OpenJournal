@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure, clearError } from '../../store/authSlice';
 import api from '../../services/api';
@@ -14,8 +14,6 @@ export default function RegisterForm() {
   const { loading, error } = useSelector(state => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const referredByCode = searchParams.get('ref');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,16 +35,10 @@ export default function RegisterForm() {
       const { data } = await api.post('/auth/register', { 
         email, 
         password, 
-        displayName,
-        referredByCode
+        displayName 
       });
       dispatch(loginSuccess(data.data));
-      // Route waitlisted users to the waitlist page
-      if (data.data?.status === 'waitlist') {
-        navigate('/waitlist');
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     } catch (err) {
       dispatch(loginFailure(err.response?.data?.message || 'Registration failed'));
     }
@@ -60,8 +52,7 @@ export default function RegisterForm() {
         uid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName,
-        photoURL: firebaseUser.photoURL,
-        referredByCode
+        photoURL: firebaseUser.photoURL
       });
       dispatch(loginSuccess(data.data));
       navigate('/');

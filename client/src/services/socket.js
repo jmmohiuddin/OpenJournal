@@ -41,8 +41,7 @@ const SOCKET_URL = resolveSocketUrl();
 
 const socket = io(SOCKET_URL, {
   autoConnect: false,
-  auth: {},
-  reconnection: !import.meta.env.PROD, // Disable infinite retries in Vercel prod to prevent 404 spam
+  auth: {}
 });
 
 // Connect with auth token
@@ -59,6 +58,15 @@ export const disconnectSocket = () => {
   socket.disconnect();
 };
 
+const subscribe = (event, handler) => {
+  socket.on(event, handler);
+  return () => socket.off(event, handler);
+};
+
+export const onResonance = (handler) => subscribe('resonance', handler);
+export const onConnectionEnriched = (handler) => subscribe('connection_enriched', handler);
+export const onConnectionAccepted = (handler) => subscribe('connection_accepted', handler);
+
 // Listen for connection events
 socket.on('connect', () => {
   console.log('Socket connected:', socket.id);
@@ -71,21 +79,5 @@ socket.on('disconnect', (reason) => {
 socket.on('connect_error', (error) => {
   console.error('Socket connection error:', error.message);
 });
-
-// Resonance / Connection state listeners
-export const onResonance = (callback) => {
-  socket.on('resonance', callback);
-  return () => socket.off('resonance', callback);
-};
-
-export const onConnectionEnriched = (callback) => {
-  socket.on('connection_enriched', callback);
-  return () => socket.off('connection_enriched', callback);
-};
-
-export const onConnectionAccepted = (callback) => {
-  socket.on('connection_accepted', callback);
-  return () => socket.off('connection_accepted', callback);
-};
 
 export default socket;
