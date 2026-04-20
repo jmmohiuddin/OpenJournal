@@ -3,6 +3,8 @@ import { useSelector } from 'react-redux';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import LandingPage from './pages/LandingPage';
+import PrivacyPage from './pages/PrivacyPage';
 import JournalPage from './pages/JournalPage';
 import EntriesPage from './pages/EntriesPage';
 import EntryDetailPage from './pages/EntryDetailPage';
@@ -42,6 +44,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        
         <Route path="/login" element={
           <PublicRoute><LoginPage /></PublicRoute>
         } />
@@ -55,19 +60,18 @@ export default function App() {
         } />
 
         {/* Protected routes with layout */}
-        <Route path="/" element={
+        <Route element={
           <ProtectedRoute><Layout /></ProtectedRoute>
         }>
-          <Route index element={<Navigate to="/journal" replace />} />
-          <Route path="journal" element={<JournalPage />} />
-          <Route path="entries" element={<EntriesPage />} />
-          <Route path="entry/:id" element={<EntryDetailPage />} />
-          <Route path="connections" element={<ConnectionsPage />} />
-          <Route path="circles" element={<CirclesPage />} />
-          <Route path="circles/new" element={<CreateCirclePage />} />
-          <Route path="insights" element={<InsightsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path="/journal" element={<JournalPage />} />
+          <Route path="/entries" element={<EntriesPage />} />
+          <Route path="/entry/:id" element={<EntryDetailPage />} />
+          <Route path="/connections" element={<ConnectionsPage />} />
+          <Route path="/circles" element={<CirclesPage />} />
+          <Route path="/circles/new" element={<CreateCirclePage />} />
+          <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
 
         {/* Bridge view (full screen, no sidebar) */}
