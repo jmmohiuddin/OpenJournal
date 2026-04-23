@@ -18,6 +18,8 @@ import CircleViewPage from './pages/CircleViewPage';
 import CreateCirclePage from './pages/CreateCirclePage';
 import Layout from './components/Layout/Layout';
 import OnboardingInterview from './components/Onboarding/OnboardingInterview';
+import AdminFeedbackPage from './pages/AdminFeedbackPage';
+import WaitlistPage from './pages/WaitlistPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, user } = useSelector(state => state.auth);
@@ -27,8 +29,13 @@ function ProtectedRoute({ children }) {
   }
   
   // Redirect to onboarding if not completed
-  if (user && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
+  if (user && user.status !== 'waitlist' && !user.onboardingComplete && window.location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Redirect to waitlist if on waitlist
+  if (user && user.status === 'waitlist' && window.location.pathname !== '/waitlist') {
+    return <Navigate to="/waitlist" replace />;
   }
   
   return children;
@@ -59,6 +66,11 @@ export default function App() {
           <ProtectedRoute><OnboardingInterview /></ProtectedRoute>
         } />
 
+        {/* Waitlist (protected but no layout) */}
+        <Route path="/waitlist" element={
+          <ProtectedRoute><WaitlistPage /></ProtectedRoute>
+        } />
+
         {/* Protected routes with layout */}
         <Route element={
           <ProtectedRoute><Layout /></ProtectedRoute>
@@ -72,6 +84,7 @@ export default function App() {
           <Route path="/insights" element={<InsightsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin/feedback" element={<AdminFeedbackPage />} />
         </Route>
 
         {/* Bridge view (full screen, no sidebar) */}
